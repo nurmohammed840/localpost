@@ -1,11 +1,11 @@
-#![allow(unused)]
 use crate::file::utils::write_all_vectored;
-use crate::protocol::{FileInfo, Hello, SystemInfo};
+use crate::protocol::{FileInfo, Hello, Request, SystemInfo};
 use crate::{Result, protocol::Message};
 
 use lipi::{Decode, Encode};
-use std::io::{self, BufRead, BufReader, BufWriter, IoSlice, Read, Write};
-use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
+use std::io::{self, *};
+use std::net::*;
+use std::thread;
 
 pub struct EndPoint {
     tcp: TcpListener,
@@ -25,6 +25,10 @@ impl EndPoint {
         })
     }
 
+    pub fn local_ip(&self) -> io::Result<IpAddr> {
+        self.tcp.local_addr().map(|addr| addr.ip())
+    }
+
     pub fn accept(&mut self) -> Result<(SystemInfo, Conn)> {
         let (stream, addr) = self.tcp.accept()?;
         let mut conn = Conn::new(stream, addr)?;
@@ -34,7 +38,7 @@ impl EndPoint {
 }
 
 pub struct Conn {
-    addr: SocketAddr,
+    _addr: SocketAddr,
     reader: BufReader<TcpStream>,
     writer: BufWriter<TcpStream>,
 
@@ -47,7 +51,7 @@ impl Conn {
         let writer = BufWriter::new(stream);
 
         Ok(Conn {
-            addr,
+            _addr: addr,
             reader,
             writer,
             len_buf: [0; 4],
@@ -114,14 +118,53 @@ impl Conn {
     pub fn send(&mut self, msg: Message) -> Result<()> {
         self.send_frame(&msg.to_bytes()?)
     }
+
+    pub fn next_req(&mut self) -> Result<Request> {
+        let req = match self.read()? {
+            Message::Handshake(_) => return Err("...".into()),
+            Message::Write(file_info) => Request::Write(file_info),
+            _ => todo!(),
+        };
+        Ok(req)
+    }
 }
 
-#[ignore]
+pub fn run_endpoint(port: u16) -> Result<()> {
+    let mut server = EndPoint::new(port)?;
+
+    let mut accept_conn = || -> Result<()> {
+        let (info, mut conn) = server.accept()?;
+
+        println!("New Connection: {info:#?}");
+        conn.send_hello()?;
+
+        thread::spawn(move || {
+            while let Ok(req) = conn.next_req() {
+                match req {
+                    Request::Write(info) => {
+                        println!("write req: {info:#?}");
+                        
+                        thread::spawn(|| {});
+                    }
+                }
+            }
+        });
+
+        Ok(())
+    };
+
+    loop {
+        let _ = accept_conn();
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #[allow(warnings)]
+    use super::*;
+    use crate::file::reader::FileReader;
     use std::thread;
 
-    use super::*;
     const PORT: u16 = 54231;
 
     #[test]
@@ -133,12 +176,15 @@ mod tests {
             c.spawn(|| {
                 let (user, mut conn) = server.accept().unwrap();
                 conn.send_hello().unwrap();
-                println!("Server: {:#?}; {user:#?}", conn.addr);
+                println!("Server: {:#?}; {user:#?}", conn._addr);
             });
 
             c.spawn(|| {
-                let (user, conn) = Conn::open(addr).unwrap();
-                println!("User: {:#?}; {user:#?}", conn.addr);
+                let (user, mut conn) = Conn::open(addr).unwrap();
+                println!("User: {:#?}; {user:#?}", conn._addr);
+
+                let (_file_reader, info) = FileReader::open("./README.md", 1024).unwrap();
+                conn.req_send_file(info).unwrap();
             });
         });
 

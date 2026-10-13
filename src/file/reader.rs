@@ -45,6 +45,7 @@ impl FileReader {
                 offset: 0,
             },
             FileInfo {
+                id: fastrand::u64(..),
                 name,
                 size,
                 frame_size,

@@ -5,24 +5,36 @@ use std::{env::consts as SYS, ops::RangeBounds};
 #[repr(u8)]
 #[derive(Debug, Encode, Decode)]
 pub enum Message {
-    Handshake(Hello) = 1,
-    Write(FileInfo) = 2,
-    Read = 3,
+    Handshake(Hello) = 0,
+
+    Write(FileInfo) = 1,
+    TransferID(TransferID) = 2,
 }
 
-pub enum ReadMetadata {
-    Full,
+pub enum Request {
+    Write(FileInfo),
+}
+
+#[derive(Debug, Encode, Decode)]
+pub struct TransferID {
+    #[key = 0]
+    pub udp_port: u16,
+
+    #[key = 1]
+    pub file_id: u64,
 }
 
 #[derive(Debug, Encode, Decode)]
 pub struct FileInfo {
     #[key = 0]
-    pub name: Vec<u8>,
+    pub id: u64,
     #[key = 1]
-    pub size: u64,
+    pub name: Vec<u8>,
     #[key = 2]
-    pub frame_size: u16,
+    pub size: u64,
     #[key = 3]
+    pub frame_size: u16,
+    #[key = 4]
     pub last_modified: u64,
 }
 
