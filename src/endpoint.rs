@@ -1,14 +1,11 @@
 use crate::{
     Result,
-    file::{FileReader, FileWriter, utils::write_all_vectored},
+    file::{FileBitSet, FileReader, FileWriter, utils::write_all_vectored},
     protocol::*,
 };
 use lipi::{Decode, Encode};
 use std::{
-    io::{self, *},
-    net::*,
-    path::Path,
-    thread,
+    io::{self, *}, net::*, path::Path, thread, time::Duration,
 };
 
 pub struct EndPoint {
@@ -128,7 +125,9 @@ impl Conn {
 
 impl Conn {
     fn create_udp_socket(&mut self) -> io::Result<UdpSocket> {
-        UdpSocket::bind((self.local_addr.ip(), 0))
+        let socket = UdpSocket::bind((self.local_addr.ip(), 0))?;
+        socket.set_read_timeout(Some(Duration::from_secs(7)))?;
+        Ok(socket)
     }
 
     pub fn send_file_to_server(&mut self, path: impl AsRef<Path>, frame_size: u16) -> Result<()> {
@@ -151,6 +150,7 @@ impl Conn {
     }
 
     fn create_transfer_socket(&mut self, file_info: FileInfo) -> Result<()> {
+        let mut bitset = FileBitSet::new(file_info.num_of_frames().try_into()?);
         let mut writer = FileWriter::open("file.txt", file_info.frame_size - 4)?;
 
         let tid = file_info.tid;
@@ -162,26 +162,43 @@ impl Conn {
             file_id: tid.file_id,
         })?;
 
-        let mut recv_data = move || -> Result<()> {
+        enum State {
+            Done,
+            Continue,
+        }
+
+        let mut recv_data = move || -> Result<State> {
             let mut buf = vec![0; file_info.frame_size.into()];
             let len = socket.recv(&mut buf)?;
             let frame = DataFrame::from(buf, len);
 
             socket.send(frame.ack().as_bytes())?;
 
+            let is_already_set = bitset.set(frame.no());
+            if is_already_set {
+                return Ok(State::Continue);
+            }
+
             writer.write(frame);
+
+            if bitset.is_full() {
+                writer.flush()?;
+                return Ok(State::Done);
+            }
 
             if writer.total_bytes() >= 32 * 1024 * 1024 {
                 writer.flush()?;
             }
 
-            Ok(())
+            Ok(State::Continue)
         };
 
         thread::spawn(move || {
             loop {
-                if let Err(err) = recv_data() {
-                    break println!("{err}");
+                match recv_data() {
+                    Ok(State::Continue) => {}
+                    Ok(State::Done) => break,
+                    Err(err) => break println!("{err}"),
                 }
             }
         });

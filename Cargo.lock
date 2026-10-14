@@ -536,7 +536,7 @@ dependencies = [
 [[package]]
 name = "lipi"
 version = "0.1.0"
-source = "git+https://github.com/nurmohammed840/setu#342ab74a4ce1c6274865405db220b69532b98a97"
+source = "git+https://github.com/nurmohammed840/setu#650e5fe40228a9eb15af2d97179d6c04a8cb3583"
 dependencies = [
  "lipi-macros",
 ]
@@ -544,7 +544,7 @@ dependencies = [
 [[package]]
 name = "lipi-derive"
 version = "0.1.0"
-source = "git+https://github.com/nurmohammed840/setu#342ab74a4ce1c6274865405db220b69532b98a97"
+source = "git+https://github.com/nurmohammed840/setu#650e5fe40228a9eb15af2d97179d6c04a8cb3583"
 dependencies = [
  "proc-macro2",
  "quote2",
@@ -554,7 +554,7 @@ dependencies = [
 [[package]]
 name = "lipi-macros"
 version = "0.1.0"
-source = "git+https://github.com/nurmohammed840/setu#342ab74a4ce1c6274865405db220b69532b98a97"
+source = "git+https://github.com/nurmohammed840/setu#650e5fe40228a9eb15af2d97179d6c04a8cb3583"
 dependencies = [
  "lipi-derive",
 ]
