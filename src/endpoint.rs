@@ -132,7 +132,7 @@ impl Conn {
     }
 
     pub fn send_file_to_server(&mut self, path: impl AsRef<Path>, frame_size: u16) -> Result<()> {
-        let (_file, mut file_info) = FileReader::open(path, frame_size)?;
+        let (_file, mut file_info) = FileReader::open(path, frame_size - 4)?;
         let file_id = file_info.tid.file_id;
 
         let socket = self.create_udp_socket()?;
@@ -151,7 +151,7 @@ impl Conn {
     }
 
     fn create_transfer_socket(&mut self, file_info: FileInfo) -> Result<()> {
-        let _file = FileWriter::open("file.txt", file_info.frame_size - 8)?;
+        let file = FileWriter::open("file.txt", file_info.frame_size - 4)?;
 
         let tid = file_info.tid;
         let socket = self.create_udp_socket()?;
@@ -163,8 +163,14 @@ impl Conn {
         })?;
 
         thread::spawn(move || {
-            let mut buf = vec![0; file_info.frame_size.into()];
-            socket.recv(&mut buf).unwrap();
+            loop {
+                let mut buf = vec![0; file_info.frame_size.into()];
+                let len = socket.recv(&mut buf).unwrap();
+                let _frame = DataFrame::new(buf, len);
+                
+                // file.write(frame.no(), frame.data());
+                let _ = file;
+            }
         });
 
         Ok(())

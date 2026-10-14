@@ -102,6 +102,29 @@ impl SystemInfo {
     }
 }
 
+pub struct DataFrame {
+    buf: Vec<u8>,
+    len: usize,
+}
+
+impl DataFrame {
+    pub fn new(buf: Vec<u8>, len: usize) -> Self {
+        assert!(len > 4);
+        Self { buf, len }
+    }
+
+    pub fn no(&self) -> u32 {
+        let bytes = self.buf[0..4].try_into().unwrap();
+        u32::from_le_bytes(bytes)
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.buf[4..self.len]
+    }
+}
+
+// =============================================================
+
 fn format_protocol_version(num: u8) -> String {
     let major = num / 10;
     let minor = num % 10;
@@ -131,5 +154,17 @@ impl fmt::Display for Message {
             Message::Write(_) => "Write Request",
             Message::TransferID(_) => "Transfer ID",
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_data_buf() {
+        let frame = DataFrame::new(vec![0, 1, 2, 3, 4, 5], 5);
+        assert_eq!(frame.no(), u32::from_le_bytes([0, 1, 2, 3]));
+        assert_eq!(frame.data(), [4]);
     }
 }
