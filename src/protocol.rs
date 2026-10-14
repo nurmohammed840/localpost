@@ -116,6 +116,12 @@ impl DataFrame {
         }
     }
 
+    pub fn ack(&self) -> AckFrame {
+        AckFrame {
+            buf: self.buf[0..4].try_into().unwrap(),
+        }
+    }
+
     pub fn from(mut buf: Vec<u8>, len: usize) -> Self {
         assert!(len > 4);
         buf.truncate(len);
@@ -131,6 +137,22 @@ impl DataFrame {
 
     pub fn data(&self) -> &[u8] {
         &self.buf[4..]
+    }
+}
+
+pub struct AckFrame {
+    buf: [u8; 4],
+}
+
+impl AckFrame {
+    pub fn new(no: u32) -> Self {
+        Self {
+            buf: no.to_le_bytes(),
+        }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.buf
     }
 }
 
