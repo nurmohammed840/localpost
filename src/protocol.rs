@@ -1,9 +1,9 @@
 use crate::Result;
 use lipi::{Decode, Encode};
-use std::{env::consts as SYS, ops::RangeBounds};
+use std::{env::consts as SYS, fmt, ops::RangeBounds};
 
 #[repr(u8)]
-#[derive(Debug, Encode, Decode)]
+#[derive(Encode, Decode, Debug)]
 pub enum Message {
     Handshake(Hello) = 0,
 
@@ -11,11 +11,7 @@ pub enum Message {
     TransferID(TransferID) = 2,
 }
 
-pub enum Request {
-    Write(FileInfo),
-}
-
-#[derive(Debug, Encode, Decode)]
+#[derive(Debug, Encode, Decode, Clone, Copy)]
 pub struct TransferID {
     #[key = 0]
     pub udp_port: u16,
@@ -27,7 +23,7 @@ pub struct TransferID {
 #[derive(Debug, Encode, Decode)]
 pub struct FileInfo {
     #[key = 0]
-    pub id: u64,
+    pub tid: TransferID,
     #[key = 1]
     pub name: Vec<u8>,
     #[key = 2]
@@ -110,4 +106,30 @@ fn format_protocol_version(num: u8) -> String {
     let major = num / 10;
     let minor = num % 10;
     format!("{}.{}", major, minor)
+}
+
+macro_rules! impl_from {
+    [$($ty:ty => $variant:ident),*] => [$(
+        impl From<$ty> for Message {
+            fn from(value: $ty) -> Self {
+                Self::$variant(value)
+            }
+        }
+    )*];
+}
+
+impl_from! {
+    Hello => Handshake,
+    FileInfo => Write,
+    TransferID => TransferID
+}
+
+impl fmt::Display for Message {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Message::Handshake(_) => "Handshake",
+            Message::Write(_) => "Write Request",
+            Message::TransferID(_) => "Transfer ID",
+        })
+    }
 }

@@ -1,3 +1,6 @@
-pub mod reader;
+mod reader;
 pub mod utils;
-pub mod writer;
+mod writer;
+
+pub use reader::FileReader;
+pub use writer::FileWriter;

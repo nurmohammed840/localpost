@@ -1,11 +1,15 @@
-use crate::file::utils::write_all_vectored;
-use crate::protocol::{FileInfo, Hello, Request, SystemInfo};
-use crate::{Result, protocol::Message};
-
+use crate::{
+    Result,
+    file::{FileReader, FileWriter, utils::write_all_vectored},
+    protocol::*,
+};
 use lipi::{Decode, Encode};
-use std::io::{self, *};
-use std::net::*;
-use std::thread;
+use std::{
+    io::{self, *},
+    net::*,
+    path::Path,
+    thread,
+};
 
 pub struct EndPoint {
     tcp: TcpListener,
@@ -38,7 +42,8 @@ impl EndPoint {
 }
 
 pub struct Conn {
-    _addr: SocketAddr,
+    local_addr: SocketAddr,
+    peer_addr: SocketAddr,
     reader: BufReader<TcpStream>,
     writer: BufWriter<TcpStream>,
 
@@ -46,12 +51,15 @@ pub struct Conn {
 }
 
 impl Conn {
-    fn new(stream: TcpStream, addr: SocketAddr) -> io::Result<Self> {
+    fn new(stream: TcpStream, peer_addr: SocketAddr) -> io::Result<Self> {
+        let local_addr = stream.local_addr()?;
+
         let reader = BufReader::new(stream.try_clone()?);
         let writer = BufWriter::new(stream);
 
         Ok(Conn {
-            _addr: addr,
+            local_addr,
+            peer_addr,
             reader,
             writer,
             len_buf: [0; 4],
@@ -63,25 +71,16 @@ impl Conn {
         let addr = stream.peer_addr()?;
 
         let mut conn = Conn::new(stream, addr)?;
-
-        conn.send_hello()?;
+        conn.send(Hello::message())?;
         let info = conn.read_hello()?;
 
         Ok((info, conn))
     }
 
-    pub fn req_send_file(&mut self, info: FileInfo) -> Result<()> {
-        self.send(Message::Write(info))
-    }
-
-    pub fn send_hello(&mut self) -> Result<()> {
-        self.send(Message::Handshake(Hello::message()))
-    }
-
     pub fn read_hello(&mut self) -> Result<SystemInfo> {
         let hello = match self.read()? {
             Message::Handshake(hello) => hello,
-            _ => return Err("Expected Hello".into()),
+            msg => return Err(format!("expected Handshake; found: {msg}").into()),
         };
 
         hello.check_protocol_version(10..=19)?;
@@ -115,17 +114,60 @@ impl Conn {
         Message::decode(&mut buf.as_ref())
     }
 
-    pub fn send(&mut self, msg: Message) -> Result<()> {
-        self.send_frame(&msg.to_bytes()?)
+    pub fn send(&mut self, msg: impl Into<Message>) -> Result<()> {
+        self.send_frame(&msg.into().to_bytes()?)
     }
 
-    pub fn next_req(&mut self) -> Result<Request> {
-        let req = match self.read()? {
-            Message::Handshake(_) => return Err("...".into()),
-            Message::Write(file_info) => Request::Write(file_info),
-            _ => todo!(),
+    pub fn next_req(&mut self) -> Result<FileInfo> {
+        match self.read()? {
+            Message::Write(info) => Ok(info),
+            msg => Err(format!("expected File Info; found: {msg}").into()),
+        }
+    }
+}
+
+impl Conn {
+    fn create_udp_socket(&mut self) -> io::Result<UdpSocket> {
+        UdpSocket::bind((self.local_addr.ip(), 0))
+    }
+
+    pub fn send_file_to_server(&mut self, path: impl AsRef<Path>, frame_size: u16) -> Result<()> {
+        let (_file, mut file_info) = FileReader::open(path, frame_size)?;
+        let file_id = file_info.tid.file_id;
+
+        let socket = self.create_udp_socket()?;
+        file_info.tid.udp_port = socket.local_addr()?.port();
+        self.send(file_info)?;
+
+        let tid = match self.read()? {
+            Message::TransferID(tid) => tid,
+            msg => return Err(format!("expected TID; found: {msg}").into()),
         };
-        Ok(req)
+
+        assert_eq!(tid.file_id, file_id);
+        socket.connect((self.peer_addr.ip(), tid.udp_port))?;
+
+        Ok(())
+    }
+
+    fn create_transfer_socket(&mut self, file_info: FileInfo) -> Result<()> {
+        let _file = FileWriter::open("file.txt", file_info.frame_size - 8)?;
+
+        let tid = file_info.tid;
+        let socket = self.create_udp_socket()?;
+
+        socket.connect((self.peer_addr.ip(), tid.udp_port))?;
+        self.send(TransferID {
+            udp_port: socket.local_addr()?.port(),
+            file_id: tid.file_id,
+        })?;
+
+        thread::spawn(move || {
+            let mut buf = vec![0; file_info.frame_size.into()];
+            socket.recv(&mut buf).unwrap();
+        });
+
+        Ok(())
     }
 }
 
@@ -136,17 +178,12 @@ pub fn run_endpoint(port: u16) -> Result<()> {
         let (info, mut conn) = server.accept()?;
 
         println!("New Connection: {info:#?}");
-        conn.send_hello()?;
+        conn.send(Hello::message())?;
 
         thread::spawn(move || {
-            while let Ok(req) = conn.next_req() {
-                match req {
-                    Request::Write(info) => {
-                        println!("write req: {info:#?}");
-                        
-                        thread::spawn(|| {});
-                    }
-                }
+            while let Ok(info) = conn.next_req() {
+                println!("write req: {info:#?}");
+                let _ = conn.create_transfer_socket(info);
             }
         });
 
@@ -162,7 +199,7 @@ pub fn run_endpoint(port: u16) -> Result<()> {
 mod tests {
     #[allow(warnings)]
     use super::*;
-    use crate::file::reader::FileReader;
+    use crate::file::FileReader;
     use std::thread;
 
     const PORT: u16 = 54231;
@@ -175,16 +212,16 @@ mod tests {
         thread::scope(|c| {
             c.spawn(|| {
                 let (user, mut conn) = server.accept().unwrap();
-                conn.send_hello().unwrap();
-                println!("Server: {:#?}; {user:#?}", conn._addr);
+                conn.send(Hello::message()).unwrap();
+                println!("Server: {:#?}; {user:#?}", conn.peer_addr);
             });
 
             c.spawn(|| {
                 let (user, mut conn) = Conn::open(addr).unwrap();
-                println!("User: {:#?}; {user:#?}", conn._addr);
+                println!("User: {:#?}; {user:#?}", conn.peer_addr);
 
                 let (_file_reader, info) = FileReader::open("./README.md", 1024).unwrap();
-                conn.req_send_file(info).unwrap();
+                conn.send(info).unwrap();
             });
         });
 

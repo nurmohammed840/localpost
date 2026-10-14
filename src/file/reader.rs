@@ -1,6 +1,6 @@
 use std::{fs::File, io::*, path::Path, time::UNIX_EPOCH};
 
-use crate::protocol::FileInfo;
+use crate::protocol::{FileInfo, TransferID};
 
 #[derive(Debug)]
 pub struct FileReader {
@@ -45,7 +45,10 @@ impl FileReader {
                 offset: 0,
             },
             FileInfo {
-                id: fastrand::u64(..),
+                tid: TransferID {
+                    udp_port: 0,
+                    file_id: fastrand::u64(..),
+                },
                 name,
                 size,
                 frame_size,
