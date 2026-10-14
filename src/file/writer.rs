@@ -1,9 +1,9 @@
-use crate::file::utils::write_all_vectored;
+use crate::{file::utils::write_all_vectored, protocol::DataFrame};
 use std::{fs::File, io::*, path::Path};
 
 struct Chunk {
     offset: u64,
-    data: Box<[u8]>,
+    frame: DataFrame,
 }
 
 pub struct FileWriter<T: Write + Seek> {
@@ -39,12 +39,12 @@ impl<T: Write + Seek> FileWriter<T> {
         self.total_bytes
     }
 
-    pub fn write(&mut self, no: u64, data: Box<[u8]>) {
-        assert!(data.len() <= self.frame_size as usize);
+    pub fn write(&mut self, frame: DataFrame) {
+        assert!(frame.data().len() <= self.frame_size as usize);
 
         let chunk = Chunk {
-            offset: no * self.frame_size as u64,
-            data,
+            offset: frame.no() as u64 * self.frame_size as u64,
+            frame,
         };
 
         let result = self
@@ -54,7 +54,7 @@ impl<T: Write + Seek> FileWriter<T> {
         match result {
             Ok(index) => self.chunks[index] = chunk,
             Err(index) => {
-                self.total_bytes += chunk.data.len();
+                self.total_bytes += chunk.frame.data().len();
                 self.chunks.insert(index, chunk);
             }
         }
@@ -65,12 +65,14 @@ impl<T: Write + Seek> FileWriter<T> {
 
         while let Some(buf) = chunks.next() {
             let start_offset = buf.offset;
-            let mut bufs = vec![IoSlice::new(&buf.data)];
+            let start_data = buf.frame.data();
+            let mut bufs = vec![IoSlice::new(start_data)];
 
-            let mut expected_offset = start_offset + buf.data.len() as u64;
-            while let Some(next) = chunks.next_if(|&next| next.offset == expected_offset) {
-                bufs.push(IoSlice::new(&next.data));
-                expected_offset += next.data.len() as u64;
+            let mut next_offset = start_offset + start_data.len() as u64;
+            while let Some(next) = chunks.next_if(|&next| next.offset == next_offset) {
+                let data = next.frame.data();
+                bufs.push(IoSlice::new(data));
+                next_offset += data.len() as u64;
             }
 
             self.file.seek(SeekFrom::Start(start_offset))?;
@@ -106,9 +108,9 @@ mod tests {
     #[test]
     fn many_short_write() {
         let mut w = writer(2);
-        w.write(2, Box::new([2]));
-        w.write(1, Box::new([1]));
-        w.write(0, Box::new([0]));
+        w.write(DataFrame::new(2, &[2]));
+        w.write(DataFrame::new(1, &[1]));
+        w.write(DataFrame::new(0, &[0]));
 
         assert_eq!(w.total_bytes(), 3);
         w.flush().unwrap();
@@ -119,9 +121,9 @@ mod tests {
     fn write_contiguous() {
         let mut w = writer(2);
 
-        w.write(0, Box::new([0, 0]));
-        w.write(1, Box::new([1, 1]));
-        w.write(2, Box::new([2]));
+        w.write(DataFrame::new(0, &[0, 0]));
+        w.write(DataFrame::new(1, &[1, 1]));
+        w.write(DataFrame::new(2, &[2]));
 
         assert_eq!(w.total_bytes(), 5);
         w.flush().unwrap();
@@ -134,9 +136,9 @@ mod tests {
     fn write_out_of_order() {
         let mut w = writer(2);
 
-        w.write(2, Box::new([2]));
-        w.write(0, Box::new([0, 0]));
-        w.write(1, Box::new([1, 1]));
+        w.write(DataFrame::new(2, &[2]));
+        w.write(DataFrame::new(0, &[0, 0]));
+        w.write(DataFrame::new(1, &[1, 1]));
 
         w.flush().unwrap();
         assert_eq!(read(&w), &[0, 0, 1, 1, 2]);
@@ -146,8 +148,8 @@ mod tests {
     fn write_with_a_gap() {
         let mut w = writer(2);
 
-        w.write(0, Box::new([0, 0]));
-        w.write(2, Box::new([2, 2]));
+        w.write(DataFrame::new(0, &[0, 0]));
+        w.write(DataFrame::new(2, &[2, 2]));
 
         w.flush().unwrap();
         assert_eq!(read(&w), &[0, 0, 0, 0, 2, 2]);
@@ -157,8 +159,8 @@ mod tests {
     fn write_partial() {
         let mut w = writer(4);
 
-        w.write(0, Box::new([1, 2]));
-        w.write(1, Box::new([3, 4]));
+        w.write(DataFrame::new(0, &[1, 2]));
+        w.write(DataFrame::new(1, &[3, 4]));
 
         w.flush().unwrap();
         assert_eq!(read(&w), &[1, 2, 0, 0, 3, 4]);
@@ -168,8 +170,8 @@ mod tests {
     fn overwrites_existing() {
         let mut w = writer(2);
 
-        w.write(0, Box::new([1, 1]));
-        w.write(0, Box::new([2, 2]));
+        w.write(DataFrame::new(0, &[1, 1]));
+        w.write(DataFrame::new(0, &[2, 2]));
 
         assert_eq!(w.total_bytes(), 2);
 
@@ -181,10 +183,10 @@ mod tests {
     fn can_write_after_flush() {
         let mut w = writer(2);
 
-        w.write(0, Box::new([1, 2]));
+        w.write(DataFrame::new(0, &[1, 2]));
         w.flush().unwrap();
 
-        w.write(2, Box::new([3, 4]));
+        w.write(DataFrame::new(2, &[3, 4]));
         w.flush().unwrap();
 
         assert_eq!(read(&w), &[1, 2, 0, 0, 3, 4]);
@@ -194,7 +196,7 @@ mod tests {
     fn write_beyond_eof() {
         let mut w = writer(2);
 
-        w.write(3, Box::new([6]));
+        w.write(DataFrame::new(3, &[6]));
         w.flush().unwrap();
 
         assert_eq!(read(&w), &[0, 0, 0, 0, 0, 0, 6]);

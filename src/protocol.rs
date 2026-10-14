@@ -103,14 +103,25 @@ impl SystemInfo {
 }
 
 pub struct DataFrame {
-    buf: Vec<u8>,
-    len: usize,
+    buf: Box<[u8]>,
 }
 
 impl DataFrame {
-    pub fn new(buf: Vec<u8>, len: usize) -> Self {
+    pub fn new(no: u32, data: &[u8]) -> Self {
+        let mut buf = Vec::with_capacity(4 + data.len());
+        buf.extend_from_slice(&no.to_le_bytes());
+        buf.extend_from_slice(data);
+        Self {
+            buf: buf.into_boxed_slice(),
+        }
+    }
+
+    pub fn from(mut buf: Vec<u8>, len: usize) -> Self {
         assert!(len > 4);
-        Self { buf, len }
+        buf.truncate(len);
+        Self {
+            buf: buf.into_boxed_slice(),
+        }
     }
 
     pub fn no(&self) -> u32 {
@@ -119,7 +130,7 @@ impl DataFrame {
     }
 
     pub fn data(&self) -> &[u8] {
-        &self.buf[4..self.len]
+        &self.buf[4..]
     }
 }
 
@@ -163,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_data_buf() {
-        let frame = DataFrame::new(vec![0, 1, 2, 3, 4, 5], 5);
+        let frame = DataFrame::from(vec![0, 1, 2, 3, 4, 5], 5);
         assert_eq!(frame.no(), u32::from_le_bytes([0, 1, 2, 3]));
         assert_eq!(frame.data(), [4]);
     }

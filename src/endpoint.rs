@@ -166,7 +166,7 @@ impl Conn {
             loop {
                 let mut buf = vec![0; file_info.frame_size.into()];
                 let len = socket.recv(&mut buf).unwrap();
-                let _frame = DataFrame::new(buf, len);
+                let _frame = DataFrame::from(buf, len);
                 
                 // file.write(frame.no(), frame.data());
                 let _ = file;
