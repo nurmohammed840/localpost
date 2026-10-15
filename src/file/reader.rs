@@ -78,17 +78,30 @@ impl FileReader {
     }
 
     pub fn next_chunk(&mut self) -> Result<Option<Vec<u8>>> {
+        let mut chunk = Vec::new();
+
+        let has_data = self.read_next(&mut chunk)?;
+        if has_data {
+            return Ok(Some(chunk));
+        }
+
+        Ok(None)
+    }
+
+    pub fn read_next(&mut self, buf: &mut Vec<u8>) -> Result<bool> {
         let remaining = self.size.saturating_sub(self.offset);
         if remaining == 0 {
-            return Ok(None);
+            return Ok(false);
         }
 
         let buf_size = remaining.min(self.frame_size as u64) as usize;
-        let mut buf = vec![0u8; buf_size];
 
-        self.file.read_exact(&mut buf)?;
+        let old_len = buf.len();
+        buf.resize(old_len + buf_size, 0);
+
+        self.file.read_exact(&mut buf[old_len..])?;
         self.offset += buf_size as u64;
-        Ok(Some(buf))
+        Ok(true)
     }
 }
 

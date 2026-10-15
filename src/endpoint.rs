@@ -135,7 +135,7 @@ impl Conn {
     }
 
     pub fn send_file_to_server(&mut self, path: impl AsRef<Path>, frame_size: u16) -> Result<()> {
-        let (_file, mut file_info) = FileReader::open(path, frame_size - 4)?;
+        let (mut _reader, mut file_info) = FileReader::open(path, frame_size - 4)?;
         let file_id = file_info.tid.file_id;
 
         let socket = self.create_udp_socket()?;
@@ -153,7 +153,7 @@ impl Conn {
         Ok(())
     }
 
-    fn create_transfer_socket(&mut self, file_info: FileInfo) -> Result<()> {
+    fn receive_file(&mut self, file_info: FileInfo) -> Result<()> {
         let mut bitset = FileBitSet::new(file_info.num_of_frames().try_into()?);
         let mut writer = FileWriter::open("file.txt", file_info.frame_size - 4)?;
 
@@ -175,7 +175,9 @@ impl Conn {
         let mut recv_data = move |socket: &UdpSocket| -> Result<State> {
             let mut buf = vec![0; file_info.frame_size.into()];
             let len = socket.recv(&mut buf)?;
-            let frame = DataFrame::from(buf, len);
+            buf.truncate(len);
+            
+            let frame = DataFrame::from(buf);
 
             if let Some(error) = ErrorFrame::parse_from(&frame)? {
                 return Ok(State::Protocol(error));
@@ -233,7 +235,7 @@ pub fn run_endpoint(port: u16) -> Result<()> {
         thread::spawn(move || {
             while let Ok(info) = conn.next_req() {
                 println!("write req: {info:#?}");
-                let _ = conn.create_transfer_socket(info);
+                let _ = conn.receive_file(info);
             }
         });
 

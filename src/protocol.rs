@@ -122,9 +122,8 @@ impl DataFrame {
         }
     }
 
-    pub fn from(mut buf: Vec<u8>, len: usize) -> Self {
-        assert!(len > 4);
-        buf.truncate(len);
+    pub fn from(buf: Vec<u8>) -> Self {
+        assert!(buf.len() > 4);
         Self {
             buf: buf.into_boxed_slice(),
         }
@@ -254,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_data_frame() {
-        let frame = DataFrame::from(vec![0, 1, 2, 3, 4, 5], 5);
+        let frame = DataFrame::from(vec![0, 1, 2, 3, 4]);
         assert_eq!(frame.no(), u32::from_le_bytes([0, 1, 2, 3]));
         assert_eq!(frame.data(), [4]);
     }
@@ -262,9 +261,7 @@ mod tests {
     #[test]
     fn test_error_frame_parsing() -> Result<()> {
         let err = ErrorFrame::new(42, "Hello, World!");
-        let buf = err.to_bytes();
-        let len = buf.len();
-        let frame = DataFrame::from(buf, len);
+        let frame = DataFrame::from(err.to_bytes());
 
         let err = ErrorFrame::parse_from(&frame)?.unwrap();
         assert_eq!(err.code, ErrorCode::Unknown(42));
