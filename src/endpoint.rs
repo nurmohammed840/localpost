@@ -5,7 +5,11 @@ use crate::{
 };
 use lipi::{Decode, Encode};
 use std::{
-    io::{self, *}, net::*, path::Path, thread, time::Duration,
+    io::{self, *},
+    net::*,
+    path::Path,
+    thread,
+    time::Duration,
 };
 
 pub struct EndPoint {
@@ -165,12 +169,17 @@ impl Conn {
         enum State {
             Done,
             Continue,
+            Protocol(ErrorFrame),
         }
 
-        let mut recv_data = move || -> Result<State> {
+        let mut recv_data = move |socket: &UdpSocket| -> Result<State> {
             let mut buf = vec![0; file_info.frame_size.into()];
             let len = socket.recv(&mut buf)?;
             let frame = DataFrame::from(buf, len);
+
+            if let Some(error) = ErrorFrame::parse_from(&frame)? {
+                return Ok(State::Protocol(error));
+            }
 
             socket.send(frame.ack().as_bytes())?;
 
@@ -195,10 +204,15 @@ impl Conn {
 
         thread::spawn(move || {
             loop {
-                match recv_data() {
+                match recv_data(&socket) {
                     Ok(State::Continue) => {}
                     Ok(State::Done) => break,
-                    Err(err) => break println!("{err}"),
+                    Ok(State::Protocol(error)) => break println!("{error:?}"),
+                    Err(err) => {
+                        let error_frame = ErrorFrame::new(ErrorCode::Other, err.to_string());
+                        let _ = socket.send(&error_frame.to_bytes());
+                        break println!("{err}");
+                    }
                 }
             }
         });

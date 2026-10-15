@@ -156,6 +156,64 @@ impl AckFrame {
     }
 }
 
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorCode {
+    Unknown(u8) = 0,
+    Other = 1,
+}
+
+impl From<ErrorCode> for u8 {
+    fn from(code: ErrorCode) -> Self {
+        match code {
+            ErrorCode::Other => 1,
+            ErrorCode::Unknown(code) => code,
+        }
+    }
+}
+
+impl From<u8> for ErrorCode {
+    fn from(code: u8) -> Self {
+        match code {
+            1 => Self::Other,
+            code => Self::Unknown(code),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ErrorFrame {
+    code: ErrorCode,
+    msg: String,
+}
+
+impl ErrorFrame {
+    pub fn new(code: impl Into<ErrorCode>, msg: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            msg: msg.into(),
+        }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(4 + 1 + self.msg.len());
+        buf.extend_from_slice(&u32::MAX.to_le_bytes());
+        buf.push(self.code.into());
+        buf.extend_from_slice(self.msg.as_bytes());
+        buf
+    }
+
+    pub fn parse_from(frame: &DataFrame) -> Result<Option<Self>> {
+        if frame.no() != u32::MAX {
+            return Ok(None);
+        }
+        let mut reader = frame.data();
+        let code: u8 = lipi::Decode::decode(&mut reader)?;
+        let msg = String::from_utf8(reader.to_vec())?;
+        Ok(Some(Self::new(code, msg)))
+    }
+}
+
 // =============================================================
 
 fn format_protocol_version(num: u8) -> String {
@@ -195,9 +253,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_data_buf() {
+    fn test_data_frame() {
         let frame = DataFrame::from(vec![0, 1, 2, 3, 4, 5], 5);
         assert_eq!(frame.no(), u32::from_le_bytes([0, 1, 2, 3]));
         assert_eq!(frame.data(), [4]);
+    }
+
+    #[test]
+    fn test_error_frame_parsing() -> Result<()> {
+        let err = ErrorFrame::new(42, "Hello, World!");
+        let buf = err.to_bytes();
+        let len = buf.len();
+        let frame = DataFrame::from(buf, len);
+
+        let err = ErrorFrame::parse_from(&frame)?.unwrap();
+        assert_eq!(err.code, ErrorCode::Unknown(42));
+        assert_eq!(err.msg, "Hello, World!");
+        Ok(())
     }
 }

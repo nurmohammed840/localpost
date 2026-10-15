@@ -1,9 +1,9 @@
 pub mod utils;
 
+mod file_bitset;
 mod reader;
 mod writer;
-mod file_bitset;
 
-pub use reader::FileReader;
 pub use file_bitset::FileBitSet;
+pub use reader::FileReader;
 pub use writer::FileWriter;
