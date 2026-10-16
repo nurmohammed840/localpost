@@ -176,7 +176,7 @@ impl Conn {
             let mut buf = vec![0; file_info.frame_size.into()];
             let len = socket.recv(&mut buf)?;
             buf.truncate(len);
-            
+
             let frame = DataFrame::from(buf);
 
             if let Some(error) = ErrorFrame::parse_from(&frame)? {

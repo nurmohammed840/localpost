@@ -12,7 +12,7 @@ pub struct FileReader<T> {
 
 impl FileReader<File> {
     pub fn open(path: impl AsRef<Path>, frame_size: u16) -> Result<(Self, FileInfo)> {
-        Self::open_with_capacity(path, frame_size, 8 * 1024)
+        Self::open_with_capacity(path, frame_size, 8 * 1024 * 1024)
     }
 
     pub fn open_with_capacity(
@@ -84,13 +84,8 @@ where
 
     pub fn next_chunk(&mut self) -> Result<Option<Vec<u8>>> {
         let mut chunk = Vec::new();
-
         let has_data = self.read_next(&mut chunk)?;
-        if has_data {
-            return Ok(Some(chunk));
-        }
-
-        Ok(None)
+        Ok(has_data.then_some(chunk))
     }
 
     pub fn read_next(&mut self, buf: &mut Vec<u8>) -> Result<bool> {
