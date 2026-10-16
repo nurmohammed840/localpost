@@ -1,12 +1,17 @@
+use std::io::{Read, Seek};
+
 use crate::{Result, file::FileReader, protocol::DataFrame};
 
-pub struct FrameReader {
+pub struct FrameReader<T> {
     next_frame_no: u32,
-    reader: FileReader,
+    reader: FileReader<T>,
 }
 
-impl FrameReader {
-    pub fn new(reader: FileReader) -> Self {
+impl<T> FrameReader<T>
+where
+    T: Seek + Read,
+{
+    pub fn new(reader: FileReader<T>) -> Self {
         Self {
             next_frame_no: 0,
             reader,
