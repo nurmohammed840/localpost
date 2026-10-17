@@ -137,6 +137,10 @@ impl DataFrame {
     pub fn data(&self) -> &[u8] {
         &self.buf[4..]
     }
+
+    pub fn to_bytes(&self) -> &[u8] {
+        &self.buf
+    }
 }
 
 pub struct AckFrame {

@@ -1,6 +1,6 @@
 use crate::{
     Result,
-    file::{FileBitSet, FileReader, FileWriter, utils::write_all_vectored},
+    file::{FileBitSet, FileReader, FileWriter, FrameReader, utils::write_all_vectored},
     protocol::*,
 };
 use lipi::{Decode, Encode};
@@ -135,7 +135,7 @@ impl Conn {
     }
 
     pub fn send_file_to_server(&mut self, path: impl AsRef<Path>, frame_size: u16) -> Result<()> {
-        let (mut _reader, mut file_info) = FileReader::open(path, frame_size - 4)?;
+        let (reader, mut file_info) = FileReader::open(path, frame_size - 4)?;
         let file_id = file_info.tid.file_id;
 
         let socket = self.create_udp_socket()?;
@@ -149,6 +149,22 @@ impl Conn {
 
         assert_eq!(tid.file_id, file_id);
         socket.connect((self.peer_addr.ip(), tid.udp_port))?;
+
+        thread::spawn(move || -> Result<()> {
+            let mut frames = FrameReader::new(reader);
+
+            let cwnd = 10;
+
+            for _ in 0..cwnd {
+                let Some(data) = frames.next_data_frame()? else {
+                    break;
+                };
+
+                socket.send(data.to_bytes())?;
+            }
+
+            Ok(())
+        });
 
         Ok(())
     }
