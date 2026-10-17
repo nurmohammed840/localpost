@@ -106,6 +106,12 @@ pub struct DataFrame {
     buf: Box<[u8]>,
 }
 
+impl fmt::Debug for DataFrame {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DataFrame").field("no", &self.no()).finish()
+    }
+}
+
 impl DataFrame {
     pub fn new(no: u32, data: &[u8]) -> Self {
         let mut buf = Vec::with_capacity(4 + data.len());
@@ -116,6 +122,7 @@ impl DataFrame {
         }
     }
 
+  
     pub fn ack(&self) -> AckFrame {
         AckFrame {
             buf: self.buf[0..4].try_into().unwrap(),

@@ -1,9 +1,14 @@
-use crate::protocol::DataFrame;
 use std::{
-    mem,
+    cmp, mem,
     time::{Duration, Instant},
 };
 
+use crate::{
+    protocol::DataFrame,
+    utils::{IteratorExt, VecExt},
+};
+
+#[derive(Debug)]
 pub struct Payload {
     send_at: Instant,
     data: DataFrame,
@@ -18,156 +23,148 @@ impl Payload {
     }
 }
 
-pub enum Plane {
-    New,
-    InFlight(Payload),
-    Landed,
-    NextInFlight(Payload),
-    Lost(Payload),
-}
-
-impl Plane {
-    pub fn is_new(&self) -> bool {
-        matches!(self, Self::New)
-    }
-
-    pub fn is_landed(&self) -> bool {
-        matches!(self, Self::Landed)
-    }
-
-    pub fn is_in_flight(&self) -> bool {
-        matches!(self, Plane::InFlight(_))
-    }
-
-    pub fn mark_as_lost(&mut self) {
-        match mem::replace(self, Plane::New) {
-            Plane::InFlight(payload) | Plane::NextInFlight(payload) => *self = Plane::Lost(payload),
-            Plane::Lost(_) => panic!("already lost"),
-            Plane::New | Plane::Landed => panic!("not in flight"),
-        }
-    }
-
-    pub fn set_in_flight(&mut self, data: DataFrame) {
-        let plane = mem::replace(self, Plane::InFlight(Payload::new(data)));
-        assert!(plane.is_new());
-    }
-
-    pub fn set_next_in_flight(&mut self, data: DataFrame) {
-        let plane = mem::replace(self, Plane::NextInFlight(Payload::new(data)));
-        assert!(plane.is_landed());
-    }
-
-    pub fn active_in_flight(&mut self) -> Option<&mut Payload> {
-        match self {
-            Plane::InFlight(p) | Plane::NextInFlight(p) => Some(p),
-            _ => None,
-        }
-    }
-
-    pub fn payload(&self) -> Option<&Payload> {
-        match self {
-            Plane::InFlight(p) | Plane::NextInFlight(p) | Plane::Lost(p) => Some(p),
-            _ => None,
-        }
-    }
-}
-
+#[derive(Debug)]
 pub struct Control {
-    window_size: usize,
-    window: Vec<Plane>,
+    step: usize,
+    capacity: usize,
+    reuse_free_space: usize,
 
+    /// Highest `len()` reached this round. Used to tell whether the window
+    /// was actually used, so an idle sender doesn't inflate `capacity`.
+    peak_len: usize,
+
+    in_flight: Vec<Payload>,
     queued_in_flight: Vec<Payload>,
     lost_in_flight: Vec<DataFrame>,
 }
 
 impl Control {
-    pub fn new(window_size: usize) -> Self {
+    pub fn new(capacity: usize) -> Self {
+        let capacity = capacity.max(1);
         Self {
-            window_size,
-            window: Vec::with_capacity(window_size),
+            step: capacity,
+            capacity,
+            reuse_free_space: 0,
 
-            queued_in_flight: Vec::with_capacity(window_size),
-            lost_in_flight: Vec::with_capacity(window_size),
+            peak_len: 0,
+
+            in_flight: Vec::new(),
+            queued_in_flight: Vec::new(),
+            lost_in_flight: Vec::new(),
         }
     }
 
-    pub fn make_new(&mut self) -> Option<&mut Plane> {
-        if self.window_size >= self.window.len() {
-            return None;
+    pub fn len(&self) -> usize {
+        self.in_flight.len() + self.queued_in_flight.len() + self.lost_in_flight.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn remaining_capacity(&self) -> usize {
+        self.capacity.saturating_sub(self.len())
+    }
+
+    pub fn send(&mut self, data: DataFrame) {
+        assert!(self.remaining_capacity() != 0);
+        if self.reuse_free_space != 0 {
+            self.reuse_free_space -= 1;
+            self.queued_in_flight.push(Payload::new(data));
+        } else {
+            self.in_flight.push(Payload::new(data));
         }
-        self.window.push(Plane::New);
-        self.window.last_mut()
+
+        self.peak_len = self.peak_len.max(self.len());
     }
 
-    pub fn find_available(&mut self) -> Option<&mut Plane> {
-        self.iter().find(|s| s.is_landed())
-    }
+    pub fn make_as_complete(&mut self, no: u32) {
+        let match_by_no = |data: &DataFrame| data.no() == no;
+        let found = |p: &Payload| match_by_no(&p.data);
 
-    pub fn iter(&mut self) -> impl Iterator<Item = &mut Plane> {
-        self.window.iter_mut()
-    }
+        let is_removed = self.in_flight.remove_first_if(found).is_some()
+            || self.queued_in_flight.remove_first_if(found).is_some()
+            || self.lost_in_flight.remove_first_if(match_by_no).is_some();
 
-    pub fn make_as_landed(&mut self, no: u32) -> Option<()> {
-        remove_first_if(&mut self.queued_in_flight, |p| p.data.no() == no);
-        remove_first_if(&mut self.lost_in_flight, |p| p.no() == no);
-
-        let plane = self
-            .iter()
-            .find(|plane| plane.payload().is_some_and(|p| p.data.no() == no))?;
-
-        let _ = mem::replace(plane, Plane::Landed);
-
-        Some(())
+        if is_removed && self.capacity > self.reuse_free_space {
+            self.reuse_free_space += 1;
+        }
     }
 
     pub fn process_lost(&mut self, dur: Duration) {
         let now = Instant::now();
 
-        let lost = self
-            .queued_in_flight
-            .extract_if(.., |payload| now.duration_since(payload.send_at) >= dur)
-            .map(|payload| payload.data);
+        let is_expired = |p: &mut Payload| now.duration_since(p.send_at) >= dur;
+        let data_frame = |p: Payload| p.data;
 
-        self.lost_in_flight.extend(lost);
+        self.in_flight
+            .extract_if(.., is_expired)
+            .map(data_frame)
+            .extend_into(&mut self.lost_in_flight);
 
-        for plane in self.iter() {
-            if let Some(payload) = plane.active_in_flight()
-                && now.duration_since(payload.send_at) >= dur
-            {
-                plane.mark_as_lost();
-            }
-        }
+        self.queued_in_flight
+            .extract_if(.., is_expired)
+            .map(data_frame)
+            .extend_into(&mut self.lost_in_flight);
     }
 
-    pub fn try_make_new_batch(&mut self) -> bool {
-        let batch_not_yet_complete = self.iter().any(|plane| plane.is_in_flight());
-        if batch_not_yet_complete {
-            return false;
+    pub fn collect_lost_frames(&mut self) -> Option<LostFrames> {
+        if !self.in_flight.is_empty() {
+            return None;
         }
 
-        for plane in self.window.drain(..) {
-            match plane {
-                Plane::New => panic!("unused plane"),
-                Plane::InFlight(_) => {
-                    // unreachable!()
-                }
-                Plane::Landed => {}
-                Plane::NextInFlight(payload) => self.queued_in_flight.push(payload),
-                Plane::Lost(Payload { data, .. }) => self.lost_in_flight.push(data),
+        self.in_flight.append(&mut self.queued_in_flight);
+
+        let lost_frames = mem::take(&mut self.lost_in_flight);
+        if lost_frames.is_empty() {
+            if self.peak_len >= self.capacity {
+                self.step += 1;
+                self.capacity += self.step;
             }
+        } else {
+            self.step = 1;
+            self.capacity = self.capacity.saturating_sub(lost_frames.len() * 2).max(1);
         }
-        true
-    }
 
-    pub fn process_ack(&mut self, no: u32, max_dur: Duration) {
-        self.make_as_landed(no);
-        self.process_lost(max_dur);
-        self.try_make_new_batch();
+        self.reuse_free_space = 0;
+        self.peak_len = self.len();
+        Some(LostFrames::new(lost_frames))
     }
 }
 
-fn remove_first_if<T>(v: &mut Vec<T>, f: impl FnMut(&T) -> bool) {
-    if let Some(i) = v.iter().position(f) {
-        v.swap_remove(i);
+#[derive(Debug)]
+pub struct LostFrames {
+    data: Vec<DataFrame>,
+}
+
+impl LostFrames {
+    pub fn new(mut frames: Vec<DataFrame>) -> Self {
+        frames.sort_unstable_by_key(|frame| cmp::Reverse(frame.no()));
+        Self { data: frames }
+    }
+
+    pub fn pop(&mut self) -> Option<DataFrame> {
+        self.data.pop()
+    }
+
+    pub fn make_as_complete(&mut self, no: u32) -> bool {
+        self.data.remove_first_if(|data| data.no() == no).is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn block(no: u32) -> DataFrame {
+        DataFrame::new(no, &[])
+    }
+
+    #[test]
+    fn test_send() {
+        let mut c = Control::new(2);
+        c.send(block(0));
+        c.send(block(1));
+        println!("c: {:#?}", c);
     }
 }

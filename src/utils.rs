@@ -1,0 +1,22 @@
+pub trait VecExt<T> {
+    fn remove_first_if(&mut self, f: impl FnMut(&T) -> bool) -> Option<T>;
+}
+
+impl<T> VecExt<T> for Vec<T> {
+    fn remove_first_if(&mut self, f: impl FnMut(&T) -> bool) -> Option<T> {
+        let index = self.iter().position(f)?;
+        Some(self.swap_remove(index))
+    }
+}
+
+pub trait IteratorExt: Iterator + Sized {
+    fn extend_into<E: Extend<Self::Item>>(self, collection: &mut E) -> &mut E
+    where
+        Self: Sized,
+    {
+        collection.extend(self);
+        collection
+    }
+}
+
+impl<I: Iterator> IteratorExt for I {}
