@@ -26,12 +26,9 @@ impl Payload {
 #[derive(Debug)]
 pub struct Control {
     step: usize,
+
     capacity: usize,
     reuse_free_space: usize,
-
-    /// Highest `len()` reached this round. Used to tell whether the window
-    /// was actually used, so an idle sender doesn't inflate `capacity`.
-    peak_len: usize,
 
     in_flight: Vec<Payload>,
     queued_in_flight: Vec<Payload>,
@@ -43,10 +40,9 @@ impl Control {
         let capacity = capacity.max(1);
         Self {
             step: capacity,
+
             capacity,
             reuse_free_space: 0,
-
-            peak_len: 0,
 
             in_flight: Vec::new(),
             queued_in_flight: Vec::new(),
@@ -74,11 +70,9 @@ impl Control {
         } else {
             self.in_flight.push(Payload::new(data));
         }
-
-        self.peak_len = self.peak_len.max(self.len());
     }
 
-    pub fn make_as_complete(&mut self, no: u32) {
+    pub fn mark_as_complete(&mut self, no: u32) {
         let match_by_no = |data: &DataFrame| data.no() == no;
         let found = |p: &Payload| match_by_no(&p.data);
 
@@ -108,6 +102,11 @@ impl Control {
             .extend_into(&mut self.lost_in_flight);
     }
 
+    pub fn are_all_space_used(&self) -> bool {
+        let len = self.len() + self.reuse_free_space;
+        len >= self.capacity
+    }
+
     pub fn collect_lost_frames(&mut self) -> Option<LostFrames> {
         if !self.in_flight.is_empty() {
             return None;
@@ -117,7 +116,7 @@ impl Control {
 
         let lost_frames = mem::take(&mut self.lost_in_flight);
         if lost_frames.is_empty() {
-            if self.peak_len >= self.capacity {
+            if self.are_all_space_used() {
                 self.step += 1;
                 self.capacity += self.step;
             }
@@ -127,7 +126,6 @@ impl Control {
         }
 
         self.reuse_free_space = 0;
-        self.peak_len = self.len();
         Some(LostFrames::new(lost_frames))
     }
 }
@@ -147,6 +145,14 @@ impl LostFrames {
         self.data.pop()
     }
 
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
     pub fn make_as_complete(&mut self, no: u32) -> bool {
         self.data.remove_first_if(|data| data.no() == no).is_some()
     }
@@ -156,15 +162,142 @@ impl LostFrames {
 mod tests {
     use super::*;
 
-    fn block(no: u32) -> DataFrame {
-        DataFrame::new(no, &[])
+    impl Control {
+        fn send_frame(&mut self, no: u32) {
+            self.send(DataFrame::new(no, &[]));
+        }
+
+        fn mark_as_lost(&mut self, no: u32) {
+            let found = |p: &Payload| p.data.no() == no;
+            let data_frame = |p: Payload| p.data;
+
+            self.in_flight
+                .remove_first_if(found)
+                .map(data_frame)
+                .into_iter()
+                .extend_into(&mut self.lost_in_flight);
+
+            self.queued_in_flight
+                .remove_first_if(found)
+                .map(data_frame)
+                .into_iter()
+                .extend_into(&mut self.lost_in_flight);
+        }
     }
 
     #[test]
-    fn test_send() {
+    fn test_send_blocks() {
+        let mut c = Control::new(3);
+        c.send_frame(2);
+        c.send_frame(0);
+        c.send_frame(1);
+
+        c.mark_as_complete(0);
+        c.mark_as_complete(2);
+        c.mark_as_complete(1);
+
+        c.collect_lost_frames().unwrap();
+
+        assert!(c.is_empty());
+        assert_eq!(c.step, 4);
+        assert_eq!(c.remaining_capacity(), 7);
+    }
+
+    #[test]
+    fn test_mark_and_recover_lost_frames() {
+        let mut c = Control::new(4);
+
+        for no in 0..=3 {
+            c.send_frame(no);
+        }
+
+        c.mark_as_lost(0);
+        c.mark_as_lost(1);
+        c.mark_as_complete(2);
+        c.mark_as_complete(3);
+
+        c.send_frame(4);
+        c.send_frame(5);
+
+        let mut lost = c.collect_lost_frames().unwrap();
+        assert_eq!(lost.pop().unwrap().no(), 0);
+        assert_eq!(lost.pop().unwrap().no(), 1);
+
+        assert_eq!(c.step, 1);
+        assert_eq!(c.capacity, 1);
+        assert_eq!(c.len(), 2);
+
+        c.mark_as_complete(4);
+        c.mark_as_complete(5);
+
+        assert_eq!(c.remaining_capacity(), 1);
+        c.send_frame(0);
+
+        c.collect_lost_frames().unwrap();
+        c.send_frame(1);
+
+        assert_eq!(c.step, 2);
+        assert_eq!(c.capacity, 3);
+        assert_eq!(c.len(), 2);
+    }
+
+    #[test]
+    fn test_capacity_remains_stable_when_sender_empty() {
         let mut c = Control::new(2);
-        c.send(block(0));
-        c.send(block(1));
-        println!("c: {:#?}", c);
+
+        c.collect_lost_frames().unwrap();
+        assert_eq!(c.step, 2);
+        assert_eq!(c.capacity, 2);
+
+        c.send_frame(0);
+        c.mark_as_complete(0);
+
+        c.send_frame(1);
+        c.mark_as_complete(1);
+
+        c.collect_lost_frames().unwrap();
+        assert_eq!(c.step, 2);
+        assert_eq!(c.capacity, 2);
+
+        c.send_frame(0);
+        c.send_frame(1);
+
+        c.mark_as_complete(0);
+        c.mark_as_complete(1);
+
+        c.collect_lost_frames().unwrap();
+        assert_eq!(c.step, 3);
+        assert_eq!(c.capacity, 5);
+    }
+
+    #[test]
+    fn test_capacity_increasing_linearly_on_each_step() {
+        let mut c = Control::new(0);
+
+        fn next(c: &mut Control) -> (usize, usize) {
+            let cap = c.remaining_capacity();
+            (0..cap).for_each(|no| c.send_frame(no as u32));
+            (0..cap).for_each(|no| c.mark_as_complete(no as u32));
+            c.collect_lost_frames().unwrap();
+
+            let res = (c.step, c.capacity);
+            assert_eq!(formula(c.step), res);
+            res
+        }
+
+        fn formula(step: usize) -> (usize, usize) {
+            (step, step * (step + 1) / 2)
+        }
+
+        assert_eq!((c.step, c.capacity), (1, 1));
+        assert_eq!(next(&mut c), (2, 3));
+        assert_eq!(next(&mut c), (3, 6));
+        assert_eq!(next(&mut c), (4, 10));
+        assert_eq!(next(&mut c), (5, 15));
+        assert_eq!(next(&mut c), (6, 21));
+        assert_eq!(next(&mut c), (7, 28));
+        assert_eq!(next(&mut c), (8, 36));
+        assert_eq!(next(&mut c), (9, 45));
+        assert_eq!(next(&mut c), (10, 55));
     }
 }
