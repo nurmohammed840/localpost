@@ -32,7 +32,7 @@ pub struct Control {
 
     in_flight: Vec<Payload>,
     queued_in_flight: Vec<Payload>,
-    lost_in_flight: Vec<DataFrame>,
+    lost_in_flight: Vec<Payload>,
 }
 
 impl Default for Control {
@@ -78,33 +78,33 @@ impl Control {
         }
     }
 
-    pub fn mark_as_complete(&mut self, no: u32) {
-        let match_by_no = |data: &DataFrame| data.no() == no;
-        let found = |p: &Payload| match_by_no(&p.data);
+    pub fn mark_as_complete(&mut self, no: u32) -> Option<Instant> {
+        let found = |p: &Payload| p.data.no() == no;
 
-        let is_removed = self.in_flight.remove_first_if(found).is_some()
-            || self.queued_in_flight.remove_first_if(found).is_some()
-            || self.lost_in_flight.remove_first_if(match_by_no).is_some();
+        let removed = self
+            .in_flight
+            .remove_first_if(found)
+            .or_else(|| self.queued_in_flight.remove_first_if(found))
+            .or_else(|| self.lost_in_flight.remove_first_if(found));
 
-        if is_removed && self.remaining_capacity() > self.reuse_free_space {
+        if removed.is_some() && self.remaining_capacity() > self.reuse_free_space {
             self.reuse_free_space += 1;
         }
+
+        removed.map(|p| p.send_at)
     }
 
     pub fn process_lost(&mut self, dur: Duration) {
         let now = Instant::now();
 
         let is_expired = |p: &mut Payload| now.duration_since(p.send_at) >= dur;
-        let data_frame = |p: Payload| p.data;
 
         self.in_flight
             .extract_if(.., is_expired)
-            .map(data_frame)
             .extend_into(&mut self.lost_in_flight);
 
         self.queued_in_flight
             .extract_if(.., is_expired)
-            .map(data_frame)
             .extend_into(&mut self.lost_in_flight);
     }
 
@@ -133,7 +133,7 @@ impl Control {
             self.capacity = self.capacity.saturating_sub(lost_count * 2).max(1);
         }
 
-        lost_list.append(&mut self.lost_in_flight);
+        lost_list.add_lost_frames(self.lost_in_flight.drain(..).map(|p| p.data));
         self.reuse_free_space = 0;
         true
     }
@@ -149,8 +149,8 @@ impl LostList {
         Self { set: Vec::new() }
     }
 
-    fn append(&mut self, other: &mut Vec<DataFrame>) {
-        self.set.append(other);
+    fn add_lost_frames(&mut self, other: impl Iterator<Item = DataFrame>) {
+        self.set.extend(other);
         self.set.sort_unstable_by_key(|frame| Reverse(frame.no()));
     }
 
@@ -184,17 +184,14 @@ mod tests {
 
         fn mark_as_lost(&mut self, no: u32) {
             let found = |p: &Payload| p.data.no() == no;
-            let data_frame = |p: Payload| p.data;
 
             self.in_flight
                 .remove_first_if(found)
-                .map(data_frame)
                 .into_iter()
                 .extend_into(&mut self.lost_in_flight);
 
             self.queued_in_flight
                 .remove_first_if(found)
-                .map(data_frame)
                 .into_iter()
                 .extend_into(&mut self.lost_in_flight);
         }
@@ -301,7 +298,9 @@ mod tests {
         fn next(c: &mut Control) -> (usize, usize) {
             let cap = c.remaining_capacity();
             (0..cap).for_each(|no| c.send_frame(no as u32));
-            (0..cap).for_each(|no| c.mark_as_complete(no as u32));
+            (0..cap).for_each(|no| {
+                c.mark_as_complete(no as u32);
+            });
             c.collect_lost_frames().unwrap();
             (c.step, c.capacity)
         }
