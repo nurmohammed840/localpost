@@ -3,6 +3,7 @@ use std::error::Error;
 
 pub mod congestion;
 pub mod discover;
+pub mod rto_estimator;
 pub mod endpoint;
 pub mod file;
 pub mod protocol;

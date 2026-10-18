@@ -113,7 +113,7 @@ impl Control {
         len >= self.capacity
     }
 
-    pub fn take_lost_frames_if_in_flight_is_empty(&mut self, lost_frames: &mut LostFrames) -> bool {
+    pub fn take_lost_frames_if_in_flight_is_empty(&mut self, lost_list: &mut LostList) -> bool {
         if !self.all_space_are_used() {
             return false;
         }
@@ -133,41 +133,41 @@ impl Control {
             self.capacity = self.capacity.saturating_sub(lost_count * 2).max(1);
         }
 
-        lost_frames.append(&mut self.lost_in_flight);
+        lost_list.append(&mut self.lost_in_flight);
         self.reuse_free_space = 0;
         true
     }
 }
 
 #[derive(Debug)]
-pub struct LostFrames {
-    data: Vec<DataFrame>,
+pub struct LostList {
+    set: Vec<DataFrame>,
 }
 
-impl LostFrames {
+impl LostList {
     pub fn new() -> Self {
-        Self { data: Vec::new() }
+        Self { set: Vec::new() }
     }
 
     fn append(&mut self, other: &mut Vec<DataFrame>) {
-        self.data.append(other);
-        self.data.sort_unstable_by_key(|frame| Reverse(frame.no()));
+        self.set.append(other);
+        self.set.sort_unstable_by_key(|frame| Reverse(frame.no()));
     }
 
     pub fn pop(&mut self) -> Option<DataFrame> {
-        self.data.pop()
+        self.set.pop()
     }
 
     pub fn len(&self) -> usize {
-        self.data.len()
+        self.set.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.data.is_empty()
+        self.set.is_empty()
     }
 
     pub fn make_as_complete(&mut self, no: u32) -> bool {
-        self.data.remove_first_if(|data| data.no() == no).is_some()
+        self.set.remove_first_if(|data| data.no() == no).is_some()
     }
 }
 
@@ -199,8 +199,8 @@ mod tests {
                 .extend_into(&mut self.lost_in_flight);
         }
 
-        fn collect_lost_frames(&mut self) -> Option<LostFrames> {
-            let mut lost_frames = LostFrames::new();
+        fn collect_lost_frames(&mut self) -> Option<LostList> {
+            let mut lost_frames = LostList::new();
             self.take_lost_frames_if_in_flight_is_empty(&mut lost_frames)
                 .then_some(lost_frames)
         }
