@@ -35,6 +35,12 @@ pub struct Control {
     lost_in_flight: Vec<DataFrame>,
 }
 
+impl Default for Control {
+    fn default() -> Self {
+        Self::new(10)
+    }
+}
+
 impl Control {
     pub fn new(capacity: usize) -> Self {
         let capacity = capacity.max(1);
@@ -80,7 +86,7 @@ impl Control {
             || self.queued_in_flight.remove_first_if(found).is_some()
             || self.lost_in_flight.remove_first_if(match_by_no).is_some();
 
-        if is_removed && self.capacity > self.reuse_free_space {
+        if is_removed && self.remaining_capacity() > self.reuse_free_space {
             self.reuse_free_space += 1;
         }
     }
@@ -325,5 +331,31 @@ mod tests {
         thread::sleep(Duration::from_millis(100));
         c.process_lost(Duration::from_millis(50));
         assert_eq!(c.lost_in_flight.len(), 2);
+    }
+
+    #[test]
+    fn test_complete_frames_increase_reuse_space() {
+        fn payload(no: u32) -> Payload {
+            Payload::new(DataFrame::new(no, &[]))
+        }
+
+        let mut c = Control {
+            step: 1,
+            capacity: 1,
+            in_flight: vec![payload(0), payload(1), payload(2)],
+            ..Default::default()
+        };
+
+        c.mark_as_complete(0);
+        assert_eq!(c.reuse_free_space, 0);
+        assert_eq!(c.remaining_capacity(), 0);
+
+        c.mark_as_complete(1);
+        assert_eq!(c.reuse_free_space, 0);
+        assert_eq!(c.remaining_capacity(), 0);
+
+        c.mark_as_complete(2);
+        assert_eq!(c.reuse_free_space, 1);
+        assert_eq!(c.remaining_capacity(), 1);
     }
 }
