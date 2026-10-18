@@ -167,6 +167,8 @@ impl LostFrames {
 
 #[cfg(test)]
 mod tests {
+    use std::thread;
+
     use super::*;
 
     impl Control {
@@ -205,10 +207,13 @@ mod tests {
         c.send_frame(0);
         c.send_frame(1);
 
+        assert_eq!(c.remaining_capacity(), 0);
+
         c.mark_as_complete(0);
         c.mark_as_complete(2);
         c.mark_as_complete(1);
 
+        assert_eq!(c.remaining_capacity(), 3);
         c.collect_lost_frames().unwrap();
 
         assert!(c.is_empty());
@@ -305,5 +310,20 @@ mod tests {
         assert_eq!(next(&mut c), (8, 29));
         assert_eq!(next(&mut c), (9, 37));
         assert_eq!(next(&mut c), (10, 46));
+    }
+
+    #[test]
+    fn test_process_lost() {
+        let mut c = Control::new(2);
+
+        c.send_frame(0);
+        thread::sleep(Duration::from_millis(100));
+        c.process_lost(Duration::from_millis(150));
+        assert!(c.lost_in_flight.is_empty());
+
+        c.send_frame(1);
+        thread::sleep(Duration::from_millis(100));
+        c.process_lost(Duration::from_millis(50));
+        assert_eq!(c.lost_in_flight.len(), 2);
     }
 }
