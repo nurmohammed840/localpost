@@ -1,5 +1,5 @@
 use std::{
-    cmp, mem,
+    cmp::Reverse,
     time::{Duration, Instant},
 };
 
@@ -102,31 +102,34 @@ impl Control {
             .extend_into(&mut self.lost_in_flight);
     }
 
-    pub fn are_all_space_used(&self) -> bool {
+    pub fn all_space_are_used(&self) -> bool {
         let len = self.len() + self.reuse_free_space;
         len >= self.capacity
     }
 
-    pub fn collect_lost_frames(&mut self) -> Option<LostFrames> {
+    pub fn take_lost_frames_if_in_flight_is_empty(&mut self, lost_frames: &mut LostFrames) -> bool {
+        if !self.all_space_are_used() {
+            return false;
+        }
+
         if !self.in_flight.is_empty() {
-            return None;
+            return false;
         }
 
         self.in_flight.append(&mut self.queued_in_flight);
 
-        let lost_frames = mem::take(&mut self.lost_in_flight);
-        if lost_frames.is_empty() {
-            if self.are_all_space_used() {
-                self.step += 1;
-                self.capacity += self.step;
-            }
+        let lost_count = self.lost_in_flight.len();
+        if lost_count == 0 {
+            self.capacity += self.step;
+            self.step += 1;
         } else {
             self.step = 1;
-            self.capacity = self.capacity.saturating_sub(lost_frames.len() * 2).max(1);
+            self.capacity = self.capacity.saturating_sub(lost_count * 2).max(1);
         }
 
+        lost_frames.append(&mut self.lost_in_flight);
         self.reuse_free_space = 0;
-        Some(LostFrames::new(lost_frames))
+        true
     }
 }
 
@@ -136,9 +139,13 @@ pub struct LostFrames {
 }
 
 impl LostFrames {
-    pub fn new(mut frames: Vec<DataFrame>) -> Self {
-        frames.sort_unstable_by_key(|frame| cmp::Reverse(frame.no()));
-        Self { data: frames }
+    pub fn new() -> Self {
+        Self { data: Vec::new() }
+    }
+
+    fn append(&mut self, other: &mut Vec<DataFrame>) {
+        self.data.append(other);
+        self.data.sort_unstable_by_key(|frame| Reverse(frame.no()));
     }
 
     pub fn pop(&mut self) -> Option<DataFrame> {
@@ -183,6 +190,12 @@ mod tests {
                 .into_iter()
                 .extend_into(&mut self.lost_in_flight);
         }
+
+        fn collect_lost_frames(&mut self) -> Option<LostFrames> {
+            let mut lost_frames = LostFrames::new();
+            self.take_lost_frames_if_in_flight_is_empty(&mut lost_frames)
+                .then_some(lost_frames)
+        }
     }
 
     #[test]
@@ -200,7 +213,7 @@ mod tests {
 
         assert!(c.is_empty());
         assert_eq!(c.step, 4);
-        assert_eq!(c.remaining_capacity(), 7);
+        assert_eq!(c.remaining_capacity(), 6);
     }
 
     #[test]
@@ -231,21 +244,23 @@ mod tests {
         c.mark_as_complete(5);
 
         assert_eq!(c.remaining_capacity(), 1);
+        assert_eq!(c.reuse_free_space, 1);
+
         c.send_frame(0);
 
         c.collect_lost_frames().unwrap();
         c.send_frame(1);
 
         assert_eq!(c.step, 2);
-        assert_eq!(c.capacity, 3);
+        assert_eq!(c.capacity, 2);
         assert_eq!(c.len(), 2);
     }
 
     #[test]
-    fn test_capacity_remains_stable_when_sender_empty() {
+    fn test_partial_send_does_not_change_capacity() {
         let mut c = Control::new(2);
 
-        c.collect_lost_frames().unwrap();
+        assert!(c.collect_lost_frames().is_none());
         assert_eq!(c.step, 2);
         assert_eq!(c.capacity, 2);
 
@@ -255,9 +270,7 @@ mod tests {
         c.send_frame(1);
         c.mark_as_complete(1);
 
-        c.collect_lost_frames().unwrap();
-        assert_eq!(c.step, 2);
-        assert_eq!(c.capacity, 2);
+        assert!(c.collect_lost_frames().is_none());
 
         c.send_frame(0);
         c.send_frame(1);
@@ -267,7 +280,7 @@ mod tests {
 
         c.collect_lost_frames().unwrap();
         assert_eq!(c.step, 3);
-        assert_eq!(c.capacity, 5);
+        assert_eq!(c.capacity, 4);
     }
 
     #[test]
@@ -279,25 +292,18 @@ mod tests {
             (0..cap).for_each(|no| c.send_frame(no as u32));
             (0..cap).for_each(|no| c.mark_as_complete(no as u32));
             c.collect_lost_frames().unwrap();
-
-            let res = (c.step, c.capacity);
-            assert_eq!(formula(c.step), res);
-            res
-        }
-
-        fn formula(step: usize) -> (usize, usize) {
-            (step, step * (step + 1) / 2)
+            (c.step, c.capacity)
         }
 
         assert_eq!((c.step, c.capacity), (1, 1));
-        assert_eq!(next(&mut c), (2, 3));
-        assert_eq!(next(&mut c), (3, 6));
-        assert_eq!(next(&mut c), (4, 10));
-        assert_eq!(next(&mut c), (5, 15));
-        assert_eq!(next(&mut c), (6, 21));
-        assert_eq!(next(&mut c), (7, 28));
-        assert_eq!(next(&mut c), (8, 36));
-        assert_eq!(next(&mut c), (9, 45));
-        assert_eq!(next(&mut c), (10, 55));
+        assert_eq!(next(&mut c), (2, 2));
+        assert_eq!(next(&mut c), (3, 4));
+        assert_eq!(next(&mut c), (4, 7));
+        assert_eq!(next(&mut c), (5, 11));
+        assert_eq!(next(&mut c), (6, 16));
+        assert_eq!(next(&mut c), (7, 22));
+        assert_eq!(next(&mut c), (8, 29));
+        assert_eq!(next(&mut c), (9, 37));
+        assert_eq!(next(&mut c), (10, 46));
     }
 }

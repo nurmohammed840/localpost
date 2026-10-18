@@ -12,4 +12,4 @@ sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 lipi = { git = "https://github.com/nurmohammed840/setu" }
 local-ip-address = "0.6"
 fastrand = "2"
-dirs = "7"
+# dirs = "7"
