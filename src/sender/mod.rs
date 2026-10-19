@@ -3,6 +3,7 @@ pub mod rtt_estimator;
 
 use std::{
     io::{ErrorKind, Read, Seek},
+    iter,
     net::UdpSocket,
     time::Duration,
 };
@@ -32,7 +33,7 @@ where
         Self {
             socket,
             reader: FrameReader::new(reader),
-            lost_list: LostList::new(),
+            lost_list: LostList::default(),
             rtt_estimator: RttEstimator::new(Duration::from_secs(3)),
             congestion: Control::new(10),
             recv_buf: vec![0; 1024],
@@ -55,16 +56,27 @@ where
     }
 
     pub fn init_send(&mut self) -> Result<()> {
-        let frames = (0..self.congestion.remaining_capacity())
-            .map_while(|_| self.reader.next_data_frame().transpose());
-
-        for frame in frames {
-            let data = frame?;
-            self.socket.send(data.to_bytes())?;
-            self.congestion.send(data);
-        }
-
         loop {
+            let frames = iter::from_fn(|| {
+                let lost_frame = self.lost_list.pop().map(Ok);
+                lost_frame.or_else(|| self.reader.next_frame().transpose())
+            });
+
+            let mut has_data = false;
+            let cwnd = self.congestion.remaining_capacity();
+
+            for frame in frames.take(cwnd) {
+                has_data = true;
+
+                let data = frame?;
+                self.socket.send(data.to_bytes())?;
+                self.congestion.send(data);
+            }
+
+            if !has_data && cwnd != 0 {
+                return Ok(());
+            }
+
             if let Some(ack) = self.recv_ack()?
                 && let Some(sended_at) = self.congestion.mark_as_complete(ack.no())
             {
@@ -74,14 +86,8 @@ where
 
             let rto = self.rtt_estimator.rto();
             self.congestion.process_lost(rto);
-
-            let _a = self
-                .congestion
+            self.congestion
                 .take_lost_frames_if_in_flight_is_empty(&mut self.lost_list);
-
-            break;
         }
-
-        Ok(())
     }
 }

@@ -18,7 +18,7 @@ where
         }
     }
 
-    pub fn next_data_frame(&mut self) -> Result<Option<DataFrame>> {
+    pub fn next_frame(&mut self) -> Result<Option<DataFrame>> {
         let mut frame = Vec::from(self.next_frame_no.to_le_bytes());
 
         let has_data = self.reader.read_next(&mut frame)?;

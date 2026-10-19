@@ -114,11 +114,11 @@ impl Control {
     }
 
     pub fn take_lost_frames_if_in_flight_is_empty(&mut self, lost_list: &mut LostList) -> bool {
-        if !self.all_space_are_used() {
+        if !self.in_flight.is_empty() {
             return false;
         }
 
-        if !self.in_flight.is_empty() {
+        if !self.all_space_are_used() {
             return false;
         }
 
@@ -139,16 +139,12 @@ impl Control {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct LostList {
     set: Vec<DataFrame>,
 }
 
 impl LostList {
-    pub fn new() -> Self {
-        Self { set: Vec::new() }
-    }
-
     fn add_lost_frames(&mut self, other: impl IntoIterator<Item = DataFrame>) {
         self.set.extend(other);
         self.set.sort_unstable_by_key(|frame| Reverse(frame.no()));
@@ -201,7 +197,7 @@ mod tests {
         }
 
         fn collect_lost_frames(&mut self) -> Option<LostList> {
-            let mut lost_frames = LostList::new();
+            let mut lost_frames = LostList::default();
             self.take_lost_frames_if_in_flight_is_empty(&mut lost_frames)
                 .then_some(lost_frames)
         }
@@ -363,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_lost_frame_recovery_order() {
-        let mut lost_list = LostList::new();
+        let mut lost_list = LostList::default();
         lost_list.add_lost_frames([frame(2), frame(4), frame(1)]);
         lost_list.add_lost_frames([frame(6), frame(3)]);
         lost_list.add_lost_frames([frame(5)]);
@@ -372,7 +368,7 @@ mod tests {
         while let Some(pop) = lost_list.pop() {
             list.push(pop.no());
         }
-        
+
         assert_eq!(list, [1, 2, 3, 4, 5, 6]);
     }
 }
