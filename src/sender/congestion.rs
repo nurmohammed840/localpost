@@ -149,7 +149,7 @@ impl LostList {
         Self { set: Vec::new() }
     }
 
-    fn add_lost_frames(&mut self, other: impl Iterator<Item = DataFrame>) {
+    fn add_lost_frames(&mut self, other: impl IntoIterator<Item = DataFrame>) {
         self.set.extend(other);
         self.set.sort_unstable_by_key(|frame| Reverse(frame.no()));
     }
@@ -177,9 +177,13 @@ mod tests {
 
     use super::*;
 
+    fn frame(no: u32) -> DataFrame {
+        DataFrame::new(no, &[])
+    }
+
     impl Control {
         fn send_frame(&mut self, no: u32) {
-            self.send(DataFrame::new(no, &[]));
+            self.send(frame(no));
         }
 
         fn mark_as_lost(&mut self, no: u32) {
@@ -335,9 +339,8 @@ mod tests {
     #[test]
     fn test_complete_frames_increase_reuse_space() {
         fn payload(no: u32) -> Payload {
-            Payload::new(DataFrame::new(no, &[]))
+            Payload::new(frame(no))
         }
-
         let mut c = Control {
             step: 1,
             capacity: 1,
@@ -356,5 +359,20 @@ mod tests {
         c.mark_as_complete(2);
         assert_eq!(c.reuse_free_space, 1);
         assert_eq!(c.remaining_capacity(), 1);
+    }
+
+    #[test]
+    fn test_lost_frame_recovery_order() {
+        let mut lost_list = LostList::new();
+        lost_list.add_lost_frames([frame(2), frame(4), frame(1)]);
+        lost_list.add_lost_frames([frame(6), frame(3)]);
+        lost_list.add_lost_frames([frame(5)]);
+
+        let mut list = vec![];
+        while let Some(pop) = lost_list.pop() {
+            list.push(pop.no());
+        }
+        
+        assert_eq!(list, [1, 2, 3, 4, 5, 6]);
     }
 }

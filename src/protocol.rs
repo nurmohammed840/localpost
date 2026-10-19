@@ -122,10 +122,9 @@ impl DataFrame {
         }
     }
 
-  
     pub fn ack(&self) -> AckFrame {
         AckFrame {
-            buf: self.buf[0..4].try_into().unwrap(),
+            number: self.buf[0..4].try_into().unwrap(),
         }
     }
 
@@ -151,18 +150,26 @@ impl DataFrame {
 }
 
 pub struct AckFrame {
-    buf: [u8; 4],
+    number: [u8; 4],
 }
 
 impl AckFrame {
     pub fn new(no: u32) -> Self {
         Self {
-            buf: no.to_le_bytes(),
+            number: no.to_le_bytes(),
         }
     }
 
+    pub fn from(number: [u8; 4]) -> Self {
+        Self { number }
+    }
+
+    pub fn no(&self) -> u32 {
+        u32::from_le_bytes(self.number)
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
-        &self.buf
+        &self.number
     }
 }
 

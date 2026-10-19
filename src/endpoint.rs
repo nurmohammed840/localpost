@@ -1,7 +1,8 @@
 use crate::{
     Result,
-    file::{FileBitSet, FileReader, FileWriter, FrameReader, utils::write_all_vectored},
+    file::{FileBitSet, FileReader, FileWriter, utils::write_all_vectored},
     protocol::*,
+    sender::Sender,
 };
 use lipi::{Decode, Encode};
 use std::{
@@ -151,18 +152,8 @@ impl Conn {
         socket.connect((self.peer_addr.ip(), tid.udp_port))?;
 
         thread::spawn(move || -> Result<()> {
-            let mut frames = FrameReader::new(reader);
-
-            let cwnd = 10;
-
-            for _ in 0..cwnd {
-                let Some(data) = frames.next_data_frame()? else {
-                    break;
-                };
-
-                socket.send(data.to_bytes())?;
-            }
-
+            let mut sender = Sender::new(reader, socket);
+            sender.init_send()?;
             Ok(())
         });
 
