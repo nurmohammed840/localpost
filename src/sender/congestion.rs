@@ -113,13 +113,16 @@ impl Control {
         len >= self.capacity
     }
 
-    pub fn take_lost_frames_if_in_flight_is_empty(&mut self, lost_list: &mut LostList) -> bool {
+    pub fn take_lost_frames_if_in_flight_is_empty(
+        &mut self,
+        lost_list: &mut LostList,
+    ) -> Option<usize> {
         if !self.in_flight.is_empty() {
-            return false;
+            return None;
         }
 
         if !self.all_space_are_used() {
-            return false;
+            return None;
         }
 
         self.in_flight.append(&mut self.queued_in_flight);
@@ -135,7 +138,7 @@ impl Control {
 
         lost_list.add_lost_frames(self.lost_in_flight.drain(..).map(|p| p.data));
         self.reuse_free_space = 0;
-        true
+        Some(lost_count)
     }
 }
 
@@ -199,7 +202,7 @@ mod tests {
         fn collect_lost_frames(&mut self) -> Option<LostList> {
             let mut lost_frames = LostList::default();
             self.take_lost_frames_if_in_flight_is_empty(&mut lost_frames)
-                .then_some(lost_frames)
+                .map(|_| lost_frames)
         }
     }
 
@@ -249,9 +252,11 @@ mod tests {
         assert_eq!(c.len(), 2);
 
         c.mark_as_complete(4);
-        c.mark_as_complete(5);
+        assert_eq!(c.remaining_capacity(), 0);
 
+        c.mark_as_complete(5);
         assert_eq!(c.remaining_capacity(), 1);
+
         assert_eq!(c.reuse_free_space, 1);
 
         c.send_frame(0);
