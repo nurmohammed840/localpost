@@ -5,18 +5,20 @@ mod utils;
 use std::{
     io::{ErrorKind, Read, Seek},
     iter,
-    net::UdpSocket,
     time::Duration,
 };
 
-use crate::file::{FileReader, FrameReader};
 use crate::{Result, protocol::AckFrame};
+use crate::{
+    file::{FileReader, FrameReader},
+    socket::DatagramSocket,
+};
 use congestion::{Control, LostList};
 use rtt_estimator::RttEstimator;
 
-pub struct FileSender<T> {
+pub struct FileSender<T, S> {
     reader: FrameReader<T>,
-    socket: UdpSocket,
+    socket: S,
 
     lost_list: LostList,
 
@@ -26,11 +28,12 @@ pub struct FileSender<T> {
     recv_buf: Vec<u8>,
 }
 
-impl<T> FileSender<T>
+impl<T, S> FileSender<T, S>
 where
     T: Seek + Read,
+    S: DatagramSocket,
 {
-    pub fn new(reader: FileReader<T>, socket: UdpSocket) -> Self {
+    pub fn new(reader: FileReader<T>, socket: S) -> Self {
         Self {
             socket,
             reader: FrameReader::new(reader),

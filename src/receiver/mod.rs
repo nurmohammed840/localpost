@@ -1,28 +1,33 @@
-use std::{
-    io::{Seek, Write},
-    net::UdpSocket,
-};
+use std::io::{Seek, Write};
 
 use crate::{
     Result,
     protocol::{ErrorCode, ErrorFrame, FileInfo},
+    socket::DatagramSocket,
 };
 use crate::{
     file::{FileBitSet, FileWriter},
     protocol::DataFrame,
 };
 
-pub struct FileReceiver<T: Write + Seek> {
+pub struct FileReceiver<T, S>
+where
+    T: Write + Seek,
+{
     writer: FileWriter<T>,
-    socket: UdpSocket,
+    socket: S,
     bitset: FileBitSet,
 
     frame_size: u16,
     pub flush_threshold: usize,
 }
 
-impl<T: Write + Seek> FileReceiver<T> {
-    pub fn new(writer: FileWriter<T>, socket: UdpSocket, file_info: &FileInfo) -> Result<Self> {
+impl<T, S> FileReceiver<T, S>
+where
+    T: Write + Seek,
+    S: DatagramSocket,
+{
+    pub fn new(writer: FileWriter<T>, socket: S, file_info: &FileInfo) -> Result<Self> {
         Ok(Self {
             writer,
             socket,

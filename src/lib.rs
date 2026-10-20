@@ -1,7 +1,7 @@
 pub use local_ip_address;
 use std::error::Error;
 
-
+pub mod socket;
 pub mod discover;
 pub mod endpoint;
 pub mod file;
