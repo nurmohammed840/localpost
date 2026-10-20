@@ -1,7 +1,4 @@
-pub mod mock_udp;
-
 use std::{io, net::UdpSocket, time::Duration};
-
 
 pub trait DatagramSocket {
     fn set_read_timeout(&self, dur: Option<Duration>) -> io::Result<()>;
