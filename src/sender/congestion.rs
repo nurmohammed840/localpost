@@ -4,7 +4,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{protocol::DataFrame, utils::VecExt};
+use super::utils::VecExt;
+use crate::protocol::DataFrame;
 
 #[derive(Debug)]
 pub struct Payload {
@@ -81,9 +82,9 @@ impl Control {
 
         let removed = self
             .in_flight
-            .remove_first_if(found)
-            .or_else(|| self.queued_in_flight.remove_first_if(found))
-            .or_else(|| self.lost_in_flight.remove_first_if(found));
+            .find_remove(found)
+            .or_else(|| self.queued_in_flight.find_remove(found))
+            .or_else(|| self.lost_in_flight.find_remove(found));
 
         if removed.is_some() && self.remaining_capacity() > self.reuse_free_space {
             self.reuse_free_space += 1;
@@ -165,17 +166,16 @@ impl LostList {
 
     pub fn mark_as_complete(&mut self, no: u32) -> Option<Instant> {
         self.set
-            .remove_first_if(|payload| payload.data.no() == no)
+            .find_remove(|payload| payload.data.no() == no)
             .map(|p| p.send_at)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::IteratorExt;
-    use std::thread;
-
     use super::*;
+    use crate::sender::utils::IteratorExt;
+    use std::thread;
 
     fn frame(no: u32) -> DataFrame {
         DataFrame::new(no, &[])
@@ -190,12 +190,12 @@ mod tests {
             let found = |p: &Payload| p.data.no() == no;
 
             self.in_flight
-                .remove_first_if(found)
+                .find_remove(found)
                 .into_iter()
                 .extend_into(&mut self.lost_in_flight);
 
             self.queued_in_flight
-                .remove_first_if(found)
+                .find_remove(found)
                 .into_iter()
                 .extend_into(&mut self.lost_in_flight);
         }
@@ -348,13 +348,15 @@ mod tests {
         c.process_lost(Duration::from_millis(150));
         assert_eq!(c.lost_in_flight.len(), 3);
 
+        c.mark_as_complete(0);
+        c.mark_as_complete(3);
         c.process_lost(Duration::from_millis(50));
-        assert_eq!(c.lost_in_flight.len(), 6);
+        assert_eq!(c.lost_in_flight.len(), 5);
 
         assert_frame_order(&c);
 
         let lost: Vec<_> = c.lost_in_flight.iter().map(|p| p.data.no()).collect();
-        assert_eq!(lost, [5, 4, 3, 2, 1, 0]);
+        assert_eq!(lost, [5, 4, 2, 1]);
     }
 
     fn payload(no: u32) -> Payload {
