@@ -78,11 +78,9 @@ where
             }
 
             let ack = self.recv_ack()?.and_then(|ack| {
-                let ack_no = ack.no();
-
-                self.lost_list
-                    .mark_as_complete(ack_no)
-                    .or_else(|| self.congestion.mark_as_complete(ack_no))
+                self.congestion
+                    .mark_as_complete(ack.no())
+                    .or_else(|| self.lost_list.mark_as_complete(ack.no()))
             });
 
             if let Some(sended_at) = ack {
