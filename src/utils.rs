@@ -5,7 +5,7 @@ pub trait VecExt<T> {
 impl<T> VecExt<T> for Vec<T> {
     fn remove_first_if(&mut self, f: impl FnMut(&T) -> bool) -> Option<T> {
         let index = self.iter().position(f)?;
-        Some(self.swap_remove(index))
+        Some(self.remove(index))
     }
 }
 

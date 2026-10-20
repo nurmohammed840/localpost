@@ -136,7 +136,7 @@ impl Control {
             self.capacity = self.capacity.saturating_sub(lost_count * 2).max(1);
         }
 
-        lost_list.add_lost_frames(self.lost_in_flight.drain(..).map(|p| p.data));
+        lost_list.add_lost_frames(self.lost_in_flight.drain(..));
         self.reuse_free_space = 0;
         Some(lost_count)
     }
@@ -144,17 +144,18 @@ impl Control {
 
 #[derive(Debug, Default)]
 pub struct LostList {
-    set: Vec<DataFrame>,
+    set: Vec<Payload>,
 }
 
 impl LostList {
-    fn add_lost_frames(&mut self, other: impl IntoIterator<Item = DataFrame>) {
+    fn add_lost_frames(&mut self, other: impl IntoIterator<Item = Payload>) {
         self.set.extend(other);
-        self.set.sort_unstable_by_key(|frame| Reverse(frame.no()));
+        self.set
+            .sort_unstable_by_key(|payload| Reverse(payload.data.no()));
     }
 
     pub fn pop(&mut self) -> Option<DataFrame> {
-        self.set.pop()
+        self.set.pop().map(|payload| payload.data)
     }
 
     pub fn len(&self) -> usize {
@@ -165,8 +166,10 @@ impl LostList {
         self.set.is_empty()
     }
 
-    pub fn make_as_complete(&mut self, no: u32) -> bool {
-        self.set.remove_first_if(|data| data.no() == no).is_some()
+    pub fn mark_as_complete(&mut self, no: u32) -> Option<Instant> {
+        self.set
+            .remove_first_if(|payload| payload.data.no() == no)
+            .map(|p| p.send_at)
     }
 }
 
@@ -337,11 +340,12 @@ mod tests {
         assert_eq!(c.lost_in_flight.len(), 2);
     }
 
+    fn payload(no: u32) -> Payload {
+        Payload::new(frame(no))
+    }
+
     #[test]
     fn test_complete_frames_increase_reuse_space() {
-        fn payload(no: u32) -> Payload {
-            Payload::new(frame(no))
-        }
         let mut c = Control {
             step: 1,
             capacity: 1,
@@ -365,9 +369,9 @@ mod tests {
     #[test]
     fn test_lost_frame_recovery_order() {
         let mut lost_list = LostList::default();
-        lost_list.add_lost_frames([frame(2), frame(4), frame(1)]);
-        lost_list.add_lost_frames([frame(6), frame(3)]);
-        lost_list.add_lost_frames([frame(5)]);
+        lost_list.add_lost_frames([payload(2), payload(4), payload(1)]);
+        lost_list.add_lost_frames([payload(6), payload(3)]);
+        lost_list.add_lost_frames([payload(5)]);
 
         let mut list = vec![];
         while let Some(pop) = lost_list.pop() {
