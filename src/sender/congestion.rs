@@ -119,22 +119,18 @@ impl Control {
             return None;
         }
 
-        if !self.all_space_are_used() {
-            return None;
-        }
-
         self.in_flight.append(&mut self.queued_in_flight);
 
         let lost_count = self.lost_in_flight.len();
-        if lost_count == 0 {
-            self.capacity += self.step;
-            self.step += 1;
-        } else {
+        if lost_count != 0 {
             self.step = 1;
             self.capacity = self.capacity.saturating_sub(lost_count * 2).max(1);
+            lost_list.add_lost_frames(self.lost_in_flight.drain(..));
+        } else if self.all_space_are_used() {
+            self.capacity += self.step;
+            self.step += 1;
         }
 
-        lost_list.add_lost_frames(self.lost_in_flight.drain(..));
         self.reuse_free_space = 0;
         Some(lost_count)
     }
@@ -283,7 +279,7 @@ mod tests {
     fn test_partial_send_does_not_change_capacity() {
         let mut c = Control::new(2);
 
-        assert!(c.collect_lost_frames().is_none());
+        assert!(c.collect_lost_frames().unwrap().is_empty());
         assert_eq!(c.step, 2);
         assert_eq!(c.capacity, 2);
 
@@ -293,7 +289,7 @@ mod tests {
         c.send_frame(1);
         c.mark_as_complete(1);
 
-        assert!(c.collect_lost_frames().is_none());
+        assert!(c.collect_lost_frames().unwrap().is_empty());
 
         c.send_frame(0);
         c.send_frame(1);
@@ -351,7 +347,7 @@ mod tests {
         c.mark_as_complete(0);
         c.mark_as_complete(3);
         c.process_lost(Duration::from_millis(50));
-        assert_eq!(c.lost_in_flight.len(), 5);
+        assert_eq!(c.lost_in_flight.len(), 4);
 
         assert_frame_order(&c);
 
