@@ -14,7 +14,7 @@ use crate::{Result, protocol::AckFrame};
 use congestion::{Control, LostList};
 use rtt_estimator::RttEstimator;
 
-pub struct Sender<T> {
+pub struct FileSender<T> {
     reader: FrameReader<T>,
     socket: UdpSocket,
 
@@ -26,7 +26,7 @@ pub struct Sender<T> {
     recv_buf: Vec<u8>,
 }
 
-impl<T> Sender<T>
+impl<T> FileSender<T>
 where
     T: Seek + Read,
 {

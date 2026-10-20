@@ -1,8 +1,9 @@
 use crate::{
     Result,
-    file::{FileBitSet, FileReader, FileWriter, utils::write_all_vectored},
+    file::{FileReader, FileWriter, utils::write_all_vectored},
     protocol::*,
-    sender::Sender,
+    receiver::FileReceiver,
+    sender::FileSender,
 };
 use lipi::{Decode, Encode};
 use std::{
@@ -152,7 +153,7 @@ impl Conn {
         socket.connect((self.peer_addr.ip(), tid.udp_port))?;
 
         thread::spawn(move || -> Result<()> {
-            let mut sender = Sender::new(reader, socket);
+            let mut sender = FileSender::new(reader, socket);
             sender.init_send()?;
             Ok(())
         });
@@ -161,8 +162,7 @@ impl Conn {
     }
 
     fn receive_file(&mut self, file_info: FileInfo) -> Result<()> {
-        let mut bitset = FileBitSet::new(file_info.num_of_frames().try_into()?);
-        let mut writer = FileWriter::open("file.txt", file_info.frame_size - 4)?;
+        let writer = FileWriter::open("file.txt", file_info.frame_size - 4)?;
 
         let tid = file_info.tid;
         let socket = self.create_udp_socket()?;
@@ -173,56 +173,15 @@ impl Conn {
             file_id: tid.file_id,
         })?;
 
-        enum State {
-            Done,
-            Continue,
-            Protocol(ErrorFrame),
-        }
+        let mut receiver = FileReceiver::new(writer, socket, &file_info)?;
 
-        let mut recv_data = move |socket: &UdpSocket| -> Result<State> {
-            let mut buf = vec![0; file_info.frame_size.into()];
-            let len = socket.recv(&mut buf)?;
-            buf.truncate(len);
-
-            let frame = DataFrame::from(buf);
-
-            if let Some(error) = ErrorFrame::parse_from(&frame)? {
-                return Ok(State::Protocol(error));
+        thread::spawn(move || match receiver.init_receive() {
+            Ok(None) => {}
+            Ok(Some(proto_error)) => {
+                println!("protocol error: {proto_error:#?}");
             }
-
-            socket.send(frame.ack().as_bytes())?;
-
-            let is_already_set = bitset.set(frame.no());
-            if is_already_set {
-                return Ok(State::Continue);
-            }
-
-            writer.write(frame);
-
-            if bitset.is_full() {
-                writer.flush()?;
-                return Ok(State::Done);
-            }
-
-            if writer.total_bytes() >= 32 * 1024 * 1024 {
-                writer.flush()?;
-            }
-
-            Ok(State::Continue)
-        };
-
-        thread::spawn(move || {
-            loop {
-                match recv_data(&socket) {
-                    Ok(State::Continue) => {}
-                    Ok(State::Done) => break,
-                    Ok(State::Protocol(error)) => break println!("{error:?}"),
-                    Err(err) => {
-                        let error_frame = ErrorFrame::new(ErrorCode::Other, err.to_string());
-                        let _ = socket.send(&error_frame.to_bytes());
-                        break println!("{err}");
-                    }
-                }
+            Err(io_err) => {
+                let _ = receiver.send_error(io_err.to_string());
             }
         });
 
