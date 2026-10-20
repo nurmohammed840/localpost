@@ -62,6 +62,15 @@ impl<T> FileReader<T>
 where
     T: Seek + Read,
 {
+    pub fn new(file: T, frame_size: u16, file_size: u64) -> Self {
+        Self {
+            file: BufReader::new(file),
+            size: file_size,
+            frame_size,
+            offset: 0,
+        }
+    }
+
     pub fn num_of_frames(&self) -> u64 {
         self.size.div_ceil(self.frame_size as u64)
     }
