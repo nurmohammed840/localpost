@@ -303,6 +303,46 @@ mod tests {
     }
 
     #[test]
+    fn test_frame_lifecycle() {
+        let mut c = Control::new(8);
+
+        c.send_frame(0);
+        c.send_frame(1);
+        c.send_frame(2);
+
+        assert_eq!(c.remaining_capacity(), 5);
+
+        c.mark_as_complete(0);
+        c.mark_as_complete(2);
+        assert_eq!(c.remaining_capacity(), 7);
+
+        c.send_frame(3);
+        assert_eq!(c.remaining_capacity(), 6);
+
+        c.mark_as_lost(1);
+        assert_eq!(c.remaining_capacity(), 6);
+
+        assert_eq!(c.step, 8);
+        assert_eq!(c.capacity, 8);
+        assert_eq!(c.reuse_free_space, 1);
+
+        let mut lost_list = c.collect_lost_frames().unwrap();
+
+        println!("c: {:#?}", c);
+
+        assert_eq!(c.step, 1);
+        assert_eq!(c.capacity, 6);
+        assert_eq!(c.reuse_free_space, 0);
+        assert_eq!(c.remaining_capacity(), 5);
+
+        assert_eq!(c.in_flight.len(), 1);
+        assert_eq!(c.in_flight[0].data.no(), 3);
+
+        assert_eq!(lost_list.pop().unwrap().no(), 1);
+        assert_frame_order(&c);
+    }
+
+    #[test]
     fn test_capacity_increasing_linearly_on_each_step() {
         let mut c = Control::new(0);
 
