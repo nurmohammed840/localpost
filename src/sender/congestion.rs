@@ -1,12 +1,10 @@
 use std::{
     cmp::Reverse,
+    collections::VecDeque,
     time::{Duration, Instant},
 };
 
-use crate::{
-    protocol::DataFrame,
-    utils::{IteratorExt, VecExt},
-};
+use crate::{protocol::DataFrame, utils::VecExt};
 
 #[derive(Debug)]
 pub struct Payload {
@@ -30,9 +28,9 @@ pub struct Control {
     capacity: usize,
     reuse_free_space: usize,
 
-    in_flight: Vec<Payload>,
-    queued_in_flight: Vec<Payload>,
-    lost_in_flight: Vec<Payload>,
+    in_flight: VecDeque<Payload>,
+    queued_in_flight: VecDeque<Payload>,
+    lost_in_flight: VecDeque<Payload>,
 }
 
 impl Default for Control {
@@ -50,9 +48,9 @@ impl Control {
             capacity,
             reuse_free_space: 0,
 
-            in_flight: Vec::new(),
-            queued_in_flight: Vec::new(),
-            lost_in_flight: Vec::new(),
+            in_flight: VecDeque::with_capacity(capacity),
+            queued_in_flight: VecDeque::with_capacity(capacity),
+            lost_in_flight: VecDeque::with_capacity(capacity),
         }
     }
 
@@ -72,9 +70,9 @@ impl Control {
         assert!(self.remaining_capacity() != 0);
         if self.reuse_free_space != 0 {
             self.reuse_free_space -= 1;
-            self.queued_in_flight.push(Payload::new(data));
+            self.queued_in_flight.push_back(Payload::new(data));
         } else {
-            self.in_flight.push(Payload::new(data));
+            self.in_flight.push_back(Payload::new(data));
         }
     }
 
@@ -96,16 +94,15 @@ impl Control {
 
     pub fn process_lost(&mut self, dur: Duration) {
         let now = Instant::now();
-
         let is_expired = |p: &mut Payload| now.duration_since(p.send_at) >= dur;
 
-        self.in_flight
-            .extract_if(.., is_expired)
-            .extend_into(&mut self.lost_in_flight);
+        while let Some(payload) = self.in_flight.pop_front_if(is_expired) {
+            self.lost_in_flight.push_front(payload);
+        }
 
-        self.queued_in_flight
-            .extract_if(.., is_expired)
-            .extend_into(&mut self.lost_in_flight);
+        while let Some(payload) = self.queued_in_flight.pop_front_if(is_expired) {
+            self.lost_in_flight.push_front(payload);
+        }
     }
 
     pub fn all_space_are_used(&self) -> bool {
@@ -175,6 +172,7 @@ impl LostList {
 
 #[cfg(test)]
 mod tests {
+    use crate::utils::IteratorExt;
     use std::thread;
 
     use super::*;
@@ -209,6 +207,11 @@ mod tests {
         }
     }
 
+    fn assert_frame_order(c: &Control) {
+        assert!(c.in_flight.iter().is_sorted_by_key(|p| p.send_at));
+        assert!(c.queued_in_flight.iter().is_sorted_by_key(|p| p.send_at));
+    }
+
     #[test]
     fn test_send_blocks() {
         let mut c = Control::new(3);
@@ -228,6 +231,8 @@ mod tests {
         assert!(c.is_empty());
         assert_eq!(c.step, 4);
         assert_eq!(c.remaining_capacity(), 6);
+
+        assert_frame_order(&c);
     }
 
     #[test]
@@ -270,6 +275,8 @@ mod tests {
         assert_eq!(c.step, 2);
         assert_eq!(c.capacity, 2);
         assert_eq!(c.len(), 2);
+
+        assert_frame_order(&c);
     }
 
     #[test]
@@ -327,17 +334,27 @@ mod tests {
 
     #[test]
     fn test_process_lost() {
-        let mut c = Control::new(2);
+        let mut c = Control::new(6);
 
-        c.send_frame(0);
+        (0..3).for_each(|frame| c.send_frame(frame));
         thread::sleep(Duration::from_millis(100));
+
         c.process_lost(Duration::from_millis(150));
         assert!(c.lost_in_flight.is_empty());
 
-        c.send_frame(1);
+        (3..6).for_each(|frame| c.send_frame(frame));
         thread::sleep(Duration::from_millis(100));
+
+        c.process_lost(Duration::from_millis(150));
+        assert_eq!(c.lost_in_flight.len(), 3);
+
         c.process_lost(Duration::from_millis(50));
-        assert_eq!(c.lost_in_flight.len(), 2);
+        assert_eq!(c.lost_in_flight.len(), 6);
+
+        assert_frame_order(&c);
+
+        let lost: Vec<_> = c.lost_in_flight.iter().map(|p| p.data.no()).collect();
+        assert_eq!(lost, [5, 4, 3, 2, 1, 0]);
     }
 
     fn payload(no: u32) -> Payload {
@@ -349,7 +366,7 @@ mod tests {
         let mut c = Control {
             step: 1,
             capacity: 1,
-            in_flight: vec![payload(0), payload(1), payload(2)],
+            in_flight: [payload(0), payload(1), payload(2)].into(),
             ..Default::default()
         };
 
