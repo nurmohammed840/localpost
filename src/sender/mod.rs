@@ -66,18 +66,13 @@ where
                 lost_frame.or_else(|| self.reader.next_frame().transpose())
             });
 
-            let mut has_data = false;
-            let cwnd = self.congestion.remaining_capacity();
-
-            for frame in frames.take(cwnd) {
-                has_data = true;
-
+            for frame in frames.take(self.congestion.remaining_capacity()) {
                 let data = frame?;
                 self.socket.send(data.to_bytes())?;
                 self.congestion.send(data);
             }
 
-            if !has_data && cwnd != 0 {
+            if self.congestion.is_empty() {
                 return Ok(());
             }
 

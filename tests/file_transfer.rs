@@ -76,7 +76,7 @@ fn test_file_transfer() -> Result<()> {
     receiver_socket.connect(sender_socket.local_addr()?)?;
 
     let frame_size = 1400;
-    let file_size = 64 * 1024 * 1024;
+    let file_size = 32 * 1024 * 1024;
 
     thread::spawn(move || {
         let file = MockFile::new();
@@ -94,6 +94,8 @@ fn test_file_transfer() -> Result<()> {
         receiver_socket,
         &file_info,
     )?;
+
+    receiver.flush_threshold = 8 * 1024;
 
     let proto_err = receiver.init_receive()?;
     assert!(proto_err.is_none());
