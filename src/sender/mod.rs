@@ -3,9 +3,9 @@ pub mod rtt_estimator;
 mod utils;
 
 use std::{
-    io::{ErrorKind, Read, Seek},
+    io::{self, ErrorKind, Read, Seek},
     iter,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crate::{Result, protocol::AckFrame};
@@ -25,6 +25,9 @@ pub struct FileSender<T, S> {
     rtt_estimator: RttEstimator,
     congestion: Control,
 
+    last_seen: Instant,
+    pub conn_timeout: Duration,
+
     recv_buf: Vec<u8>,
 }
 
@@ -35,11 +38,13 @@ where
 {
     pub fn new(reader: FileReader<T>, socket: S) -> Self {
         Self {
-            socket,
             reader: FrameReader::new(reader),
+            socket,
             lost_list: LostList::default(),
             rtt_estimator: RttEstimator::new(Duration::from_secs(3)),
             congestion: Control::new(10),
+            last_seen: Instant::now(),
+            conn_timeout: Duration::from_secs(7),
             recv_buf: vec![0; 1024],
         }
     }
@@ -76,6 +81,14 @@ where
                 return Ok(());
             }
 
+            let time_since_last_seen = self.last_seen.elapsed();
+            if time_since_last_seen > self.conn_timeout {
+                return Err(Box::new(io::Error::new(
+                    ErrorKind::TimedOut,
+                    format!("connection timed out after {time_since_last_seen:.3?}"),
+                )));
+            }
+
             let ack = self.recv_ack()?.and_then(|ack| {
                 self.congestion
                     .mark_as_complete(ack.no())
@@ -85,6 +98,7 @@ where
             if let Some(sended_at) = ack {
                 let rtt = sended_at.elapsed();
                 self.rtt_estimator.update(rtt);
+                self.last_seen = Instant::now();
             }
 
             let rto = self.rtt_estimator.rto();

@@ -11,14 +11,9 @@ use std::{
     thread,
 };
 
+#[derive(Default)]
 struct MockFile {
     offset: u64,
-}
-
-impl MockFile {
-    fn new() -> Self {
-        Self { offset: 0 }
-    }
 }
 
 impl Seek for MockFile {
@@ -68,13 +63,13 @@ fn test_file_transfer() -> Result<()> {
     let file_size = 32 * 1024 * 1024;
 
     thread::spawn(move || {
-        let reader = FileReader::new(MockFile::new(), frame_size, file_size);
+        let reader = FileReader::new(MockFile::default(), frame_size, file_size);
         let mut sender = FileSender::new(reader, sender_socket);
         sender.init_send().unwrap();
     });
 
     let file_info = file_info(frame_size, file_size);
-    let writer = FileWriter::new(MockFile::new(), frame_size);
+    let writer = FileWriter::new(MockFile::default(), frame_size);
     let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
 
     receiver.flush_threshold = 8 * 1024;
