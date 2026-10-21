@@ -1,12 +1,12 @@
 use localpost::{
     Result,
     file::{FileReader, FileWriter},
-    protocol::{FileInfo, TransferID},
+    protocol::FileInfo,
     receiver::FileReceiver,
     sender::FileSender,
 };
 use std::{
-    io::{self, ErrorKind, Read, Seek, SeekFrom, Write},
+    io::{self, Read, Seek, SeekFrom, Write},
     net::UdpSocket,
     thread,
 };
@@ -26,12 +26,7 @@ impl Seek for MockFile {
         self.offset = match pos {
             SeekFrom::Start(offset) => offset,
             SeekFrom::Current(offset) => self.offset.saturating_add_signed(offset),
-            SeekFrom::End(_) => {
-                return Err(io::Error::new(
-                    ErrorKind::Unsupported,
-                    "SeekFrom::End is not supported",
-                ));
-            }
+            SeekFrom::End(_) => unimplemented!(),
         };
         Ok(self.offset)
     }
@@ -50,13 +45,7 @@ impl Read for MockFile {
 impl Write for MockFile {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         for byte in buf {
-            let expected = self.offset as u8;
-            if *byte != expected {
-                return Err(io::Error::new(
-                    ErrorKind::InvalidData,
-                    format!("expected: {expected}; found: {byte}"),
-                ));
-            }
+            assert_eq!(*byte, self.offset as u8);
             self.offset += 1;
         }
         Ok(buf.len())
@@ -79,21 +68,14 @@ fn test_file_transfer() -> Result<()> {
     let file_size = 32 * 1024 * 1024;
 
     thread::spawn(move || {
-        let file = MockFile::new();
-        let mut sender =
-            FileSender::new(FileReader::new(file, frame_size, file_size), sender_socket);
-
+        let reader = FileReader::new(MockFile::new(), frame_size, file_size);
+        let mut sender = FileSender::new(reader, sender_socket);
         sender.init_send().unwrap();
     });
 
-    let file = MockFile::new();
     let file_info = file_info(frame_size, file_size);
-
-    let mut receiver = FileReceiver::new(
-        FileWriter::new(file, frame_size),
-        receiver_socket,
-        &file_info,
-    )?;
+    let writer = FileWriter::new(MockFile::new(), frame_size);
+    let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
 
     receiver.flush_threshold = 8 * 1024;
 
@@ -103,15 +85,11 @@ fn test_file_transfer() -> Result<()> {
 }
 
 fn file_info(frame_size: u16, file_size: u64) -> FileInfo {
-    let file_info = FileInfo {
+    FileInfo {
         size: file_size,
         frame_size,
-        tid: TransferID {
-            udp_port: Default::default(),
-            file_id: Default::default(),
-        },
+        tid: Default::default(),
         name: Default::default(),
         last_modified: Default::default(),
-    };
-    file_info
+    }
 }

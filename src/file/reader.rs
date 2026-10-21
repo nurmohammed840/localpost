@@ -45,10 +45,7 @@ impl FileReader<File> {
                 offset: 0,
             },
             FileInfo {
-                tid: TransferID {
-                    udp_port: 0,
-                    file_id: fastrand::u64(..),
-                },
+                tid: TransferID::default(),
                 name,
                 size,
                 frame_size,

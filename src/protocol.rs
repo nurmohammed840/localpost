@@ -20,6 +20,15 @@ pub struct TransferID {
     pub file_id: u64,
 }
 
+impl Default for TransferID {
+    fn default() -> Self {
+        Self {
+            udp_port: 0,
+            file_id: fastrand::u64(..),
+        }
+    }
+}
+
 #[derive(Debug, Encode, Decode)]
 pub struct FileInfo {
     #[key = 0]
