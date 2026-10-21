@@ -1,4 +1,7 @@
-use crate::{file::utils::write_all_vectored, protocol::DataFrame};
+use crate::{
+    file::utils::write_all_vectored,
+    protocol::{DataFrame, DataFrameLike},
+};
 use std::{fs::File, io::*, path::Path};
 
 struct Chunk {

@@ -26,7 +26,7 @@ where
             return Ok(None);
         }
 
-        let frame = DataFrame::from(frame);
+        let frame = DataFrame::try_from(frame).unwrap();
         self.next_frame_no += 1;
         Ok(Some(frame))
     }

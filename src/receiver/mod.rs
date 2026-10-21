@@ -2,7 +2,7 @@ use std::io::{Seek, Write};
 
 use crate::{
     Result,
-    protocol::{ErrorCode, ErrorFrame, FileInfo},
+    protocol::{DataFrameLike, ErrorCode, ErrorFrame, FileInfo},
     socket::DatagramSocket,
 };
 use crate::{
@@ -41,8 +41,7 @@ where
         let mut buf = vec![0; self.frame_size.into()];
         let len = self.socket.recv(&mut buf)?;
         buf.truncate(len);
-
-        Ok(DataFrame::from(buf))
+        DataFrame::try_from(buf)
     }
 
     pub fn send_ack(&mut self, frame: &DataFrame) -> Result<()> {

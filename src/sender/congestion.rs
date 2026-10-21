@@ -5,7 +5,7 @@ use std::{
 };
 
 use super::utils::VecExt;
-use crate::protocol::DataFrame;
+use crate::protocol::{DataFrame, DataFrameLike};
 
 #[derive(Debug)]
 pub struct Payload {
@@ -93,9 +93,9 @@ impl FlowControl {
         removed.map(|p| p.send_at)
     }
 
-    pub fn process_lost(&mut self, dur: Duration) {
+    pub fn process_lost(&mut self, rto: Duration) {
         let now = Instant::now();
-        let is_expired = |p: &mut Payload| now.duration_since(p.send_at) >= dur;
+        let is_expired = |p: &mut Payload| now.duration_since(p.send_at) >= rto;
 
         while let Some(payload) = self.in_flight.pop_front_if(is_expired) {
             self.lost_in_flight.push_front(payload);

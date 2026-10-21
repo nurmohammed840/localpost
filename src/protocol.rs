@@ -1,6 +1,6 @@
 use crate::Result;
 use lipi::{Decode, Encode};
-use std::{env::consts as SYS, fmt, ops::RangeBounds};
+use std::{env::consts as SYS, error::Error, fmt, ops::RangeBounds};
 
 #[repr(u8)]
 #[derive(Encode, Decode, Debug)]
@@ -121,6 +121,36 @@ impl fmt::Debug for DataFrame {
     }
 }
 
+pub trait DataFrameLike {
+    fn as_bytes(&self) -> &[u8];
+
+    fn ack(&self) -> AckFrame {
+        AckFrame {
+            number: self.as_bytes()[0..4].try_into().unwrap(),
+        }
+    }
+
+    fn no(&self) -> u32 {
+        self.ack().no()
+    }
+
+    fn data(&self) -> &[u8] {
+        &self.as_bytes()[4..]
+    }
+}
+
+impl<T: AsRef<[u8]>> DataFrameLike for T {
+    fn as_bytes(&self) -> &[u8] {
+        self.as_ref()
+    }
+}
+
+impl AsRef<[u8]> for DataFrame {
+    fn as_ref(&self) -> &[u8] {
+        &self.buf
+    }
+}
+
 impl DataFrame {
     pub fn new(no: u32, data: &[u8]) -> Self {
         let mut buf = Vec::with_capacity(4 + data.len());
@@ -131,30 +161,13 @@ impl DataFrame {
         }
     }
 
-    pub fn ack(&self) -> AckFrame {
-        AckFrame {
-            number: self.buf[0..4].try_into().unwrap(),
+    pub fn try_from(buf: Vec<u8>) -> Result<Self> {
+        if buf.len() < 4 {
+            return Err("small frame".into());
         }
-    }
-
-    pub fn from(buf: Vec<u8>) -> Self {
-        assert!(buf.len() > 4);
-        Self {
+        Ok(Self {
             buf: buf.into_boxed_slice(),
-        }
-    }
-
-    pub fn no(&self) -> u32 {
-        let bytes = self.buf[0..4].try_into().unwrap();
-        u32::from_le_bytes(bytes)
-    }
-
-    pub fn data(&self) -> &[u8] {
-        &self.buf[4..]
-    }
-
-    pub fn to_bytes(&self) -> &[u8] {
-        &self.buf
+        })
     }
 }
 
@@ -213,6 +226,13 @@ pub struct ErrorFrame {
     msg: String,
 }
 
+impl Error for ErrorFrame {}
+impl fmt::Display for ErrorFrame {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.msg.fmt(f)
+    }
+}
+
 impl ErrorFrame {
     pub fn new(code: impl Into<ErrorCode>, msg: impl Into<String>) -> Self {
         Self {
@@ -229,13 +249,13 @@ impl ErrorFrame {
         buf
     }
 
-    pub fn parse_from(frame: &DataFrame) -> Result<Option<Self>> {
+    pub fn parse_from(frame: impl DataFrameLike) -> Result<Option<Self>> {
         if frame.no() != u32::MAX {
             return Ok(None);
         }
-        let mut reader = frame.data();
-        let code: u8 = lipi::Decode::decode(&mut reader)?;
-        let msg = String::from_utf8(reader.to_vec())?;
+        let mut data = frame.data();
+        let code: u8 = lipi::Decode::decode(&mut data)?;
+        let msg = String::from_utf8(data.to_vec())?;
         Ok(Some(Self::new(code, msg)))
     }
 }
@@ -280,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_data_frame() {
-        let frame = DataFrame::from(vec![0, 1, 2, 3, 4]);
+        let frame = DataFrame::try_from(vec![0, 1, 2, 3, 4]).unwrap();
         assert_eq!(frame.no(), u32::from_le_bytes([0, 1, 2, 3]));
         assert_eq!(frame.data(), [4]);
     }
@@ -288,9 +308,7 @@ mod tests {
     #[test]
     fn test_error_frame_parsing() -> Result<()> {
         let err = ErrorFrame::new(42, "Hello, World!");
-        let frame = DataFrame::from(err.to_bytes());
-
-        let err = ErrorFrame::parse_from(&frame)?.unwrap();
+        let err = ErrorFrame::parse_from(err.to_bytes())?.unwrap();
         assert_eq!(err.code, ErrorCode::Unknown(42));
         assert_eq!(err.msg, "Hello, World!");
         Ok(())

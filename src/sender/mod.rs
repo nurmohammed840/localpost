@@ -8,7 +8,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{Result, protocol::AckFrame};
+use crate::{
+    Result,
+    protocol::{AckFrame, DataFrameLike, ErrorFrame},
+};
 use crate::{
     file::{FileReader, FrameReader},
     socket::DatagramSocket,
@@ -54,14 +57,20 @@ where
         self.socket.set_read_timeout(Some(rto))?;
 
         let len = match self.socket.recv(&mut self.recv_buf) {
+            Ok(len) if len < 4 => return Err("small read".into()),
             Err(err) if matches!(err.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {
                 return Ok(None);
             }
             len => len,
         }?;
 
-        let data = &self.recv_buf[..len];
-        Ok(data.try_into().ok().map(AckFrame::from))
+        let frame = &self.recv_buf[..len];
+
+        if let Some(error) = ErrorFrame::parse_from(frame)? {
+            return Err(io::Error::other(error).into());
+        }
+
+        Ok(Some(frame.ack()))
     }
 
     pub fn init_send(&mut self) -> Result<()> {
@@ -73,7 +82,7 @@ where
 
             for frame in frames.take(self.outgoing.remaining_capacity()) {
                 let data = frame?;
-                self.socket.send(data.to_bytes())?;
+                self.socket.send(data.as_bytes())?;
                 self.outgoing.send(data);
             }
 
@@ -83,10 +92,8 @@ where
 
             let time_since_last_seen = self.last_seen.elapsed();
             if time_since_last_seen > self.conn_timeout {
-                return Err(Box::new(io::Error::new(
-                    ErrorKind::TimedOut,
-                    format!("connection timed out after {time_since_last_seen:.3?}"),
-                )));
+                let msg = format!("connection timed out after {time_since_last_seen:.3?}");
+                return Err(io::Error::new(ErrorKind::TimedOut, msg).into());
             }
 
             let ack = self.recv_ack()?.and_then(|ack| {
@@ -96,13 +103,11 @@ where
             });
 
             if let Some(sended_at) = ack {
-                let rtt = sended_at.elapsed();
-                self.rtt_estimator.update(rtt);
+                self.rtt_estimator.update(sended_at.elapsed());
                 self.last_seen = Instant::now();
             }
 
-            let rto = self.rtt_estimator.rto();
-            self.outgoing.process_lost(rto);
+            self.outgoing.process_lost(self.rtt_estimator.rto());
             self.outgoing
                 .take_lost_frames_if_flight_is_empty(&mut self.lost_list);
         }
