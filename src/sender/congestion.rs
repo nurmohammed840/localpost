@@ -23,7 +23,7 @@ impl Payload {
 }
 
 #[derive(Debug)]
-pub struct Control {
+pub struct FlowControl {
     step: usize,
 
     capacity: usize,
@@ -34,13 +34,13 @@ pub struct Control {
     lost_in_flight: VecDeque<Payload>,
 }
 
-impl Default for Control {
+impl Default for FlowControl {
     fn default() -> Self {
         Self::new(10)
     }
 }
 
-impl Control {
+impl FlowControl {
     pub fn new(capacity: usize) -> Self {
         let capacity = capacity.max(1);
         Self {
@@ -111,7 +111,7 @@ impl Control {
         len >= self.capacity
     }
 
-    pub fn take_lost_frames_if_in_flight_is_empty(
+    pub fn take_lost_frames_if_flight_is_empty(
         &mut self,
         lost_list: &mut LostList,
     ) -> Option<usize> {
@@ -177,7 +177,7 @@ mod tests {
         DataFrame::new(no, &[])
     }
 
-    impl Control {
+    impl FlowControl {
         fn send_frame(&mut self, no: u32) {
             self.send(frame(no));
         }
@@ -198,19 +198,19 @@ mod tests {
 
         fn collect_lost_frames(&mut self) -> Option<LostList> {
             let mut lost_frames = LostList::default();
-            self.take_lost_frames_if_in_flight_is_empty(&mut lost_frames)
+            self.take_lost_frames_if_flight_is_empty(&mut lost_frames)
                 .map(|_| lost_frames)
         }
     }
 
-    fn assert_frame_order(c: &Control) {
+    fn assert_frame_order(c: &FlowControl) {
         assert!(c.in_flight.iter().is_sorted_by_key(|p| p.send_at));
         assert!(c.queued_in_flight.iter().is_sorted_by_key(|p| p.send_at));
     }
 
     #[test]
     fn test_send_blocks() {
-        let mut c = Control::new(3);
+        let mut c = FlowControl::new(3);
         c.send_frame(2);
         c.send_frame(0);
         c.send_frame(1);
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn test_mark_and_recover_lost_frames() {
-        let mut c = Control::new(4);
+        let mut c = FlowControl::new(4);
 
         for no in 0..=3 {
             c.send_frame(no);
@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_partial_send_does_not_change_capacity() {
-        let mut c = Control::new(2);
+        let mut c = FlowControl::new(2);
 
         assert!(c.collect_lost_frames().unwrap().is_empty());
         assert_eq!(c.step, 2);
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_frame_lifecycle() {
-        let mut c = Control::new(8);
+        let mut c = FlowControl::new(8);
 
         c.send_frame(0);
         c.send_frame(1);
@@ -344,9 +344,9 @@ mod tests {
 
     #[test]
     fn test_capacity_increasing_linearly_on_each_step() {
-        let mut c = Control::new(0);
+        let mut c = FlowControl::new(0);
 
-        fn next(c: &mut Control) -> (usize, usize) {
+        fn next(c: &mut FlowControl) -> (usize, usize) {
             let cap = c.remaining_capacity();
             (0..cap).for_each(|no| c.send_frame(no as u32));
             (0..cap).for_each(|no| {
@@ -370,7 +370,7 @@ mod tests {
 
     #[test]
     fn test_process_lost() {
-        let mut c = Control::new(6);
+        let mut c = FlowControl::new(6);
 
         (0..3).for_each(|frame| c.send_frame(frame));
         thread::sleep(Duration::from_millis(100));
@@ -401,7 +401,7 @@ mod tests {
 
     #[test]
     fn test_complete_frames_increase_reuse_space() {
-        let mut c = Control {
+        let mut c = FlowControl {
             step: 1,
             capacity: 1,
             in_flight: [payload(0), payload(1), payload(2)].into(),

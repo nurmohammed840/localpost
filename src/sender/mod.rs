@@ -13,7 +13,7 @@ use crate::{
     file::{FileReader, FrameReader},
     socket::DatagramSocket,
 };
-use congestion::{Control, LostList};
+use congestion::LostList;
 use rtt_estimator::RttEstimator;
 
 pub struct FileSender<T, S> {
@@ -23,7 +23,7 @@ pub struct FileSender<T, S> {
     lost_list: LostList,
 
     rtt_estimator: RttEstimator,
-    congestion: Control,
+    outgoing: congestion::FlowControl,
 
     last_seen: Instant,
     pub conn_timeout: Duration,
@@ -42,7 +42,7 @@ where
             socket,
             lost_list: LostList::default(),
             rtt_estimator: RttEstimator::new(Duration::from_secs(3)),
-            congestion: Control::new(10),
+            outgoing: congestion::FlowControl::new(10),
             last_seen: Instant::now(),
             conn_timeout: Duration::from_secs(7),
             recv_buf: vec![0; 1024],
@@ -71,13 +71,13 @@ where
                 lost_frame.or_else(|| self.reader.next_frame().transpose())
             });
 
-            for frame in frames.take(self.congestion.remaining_capacity()) {
+            for frame in frames.take(self.outgoing.remaining_capacity()) {
                 let data = frame?;
                 self.socket.send(data.to_bytes())?;
-                self.congestion.send(data);
+                self.outgoing.send(data);
             }
 
-            if self.congestion.is_empty() {
+            if self.outgoing.is_empty() {
                 return Ok(());
             }
 
@@ -90,7 +90,7 @@ where
             }
 
             let ack = self.recv_ack()?.and_then(|ack| {
-                self.congestion
+                self.outgoing
                     .mark_as_complete(ack.no())
                     .or_else(|| self.lost_list.mark_as_complete(ack.no()))
             });
@@ -102,9 +102,9 @@ where
             }
 
             let rto = self.rtt_estimator.rto();
-            self.congestion.process_lost(rto);
-            self.congestion
-                .take_lost_frames_if_in_flight_is_empty(&mut self.lost_list);
+            self.outgoing.process_lost(rto);
+            self.outgoing
+                .take_lost_frames_if_flight_is_empty(&mut self.lost_list);
         }
     }
 }
