@@ -122,7 +122,7 @@ impl fmt::Debug for DataFrame {
 }
 
 pub trait DataFrameLike {
-    /// length of bytes slice must be >= 8 
+    /// length of bytes slice must be >= 8
     fn as_bytes(&self) -> &[u8];
 
     fn ack(&self, cumulative: u32) -> AckFrame {
@@ -314,14 +314,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_data_frame() {
-        let frame = DataFrame::try_from(vec![0, 1, 2, 3, 4]).unwrap();
+    fn data_frame() {
+        let frame = DataFrame::try_from((0..10).collect()).unwrap();
         assert_eq!(frame.no(), u32::from_le_bytes([0, 1, 2, 3]));
-        assert_eq!(frame.data(), [4]);
+        assert_eq!(frame.data(), [4, 5, 6, 7, 8, 9]);
     }
 
     #[test]
-    fn test_error_frame_parsing() -> Result<()> {
+    fn error_frame_parsing() -> Result<()> {
         let err = ErrorFrame::new(42, "Hello, World!");
         let err = ErrorFrame::parse_from(err.to_bytes())?.unwrap();
         assert_eq!(err.code, ErrorCode::Unknown(42));
