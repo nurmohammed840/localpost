@@ -3,32 +3,33 @@ use lipi::{BitSet, BitSetMut};
 #[derive(Debug)]
 pub struct FileBitSet {
     bitmap: Vec<u8>,
+    cap: u32,
     len: u32,
-    completed_count: u32,
 
     filled_upto: u32,
 }
 
 impl FileBitSet {
-    pub fn new(len: u32) -> Self {
+    pub fn new(cap: u32) -> Self {
         Self {
-            bitmap: vec![0; len.div_ceil(8) as usize],
-            len,
-            completed_count: 0,
+            bitmap: vec![0; cap.div_ceil(8) as usize],
+            cap,
+            len: 0,
             filled_upto: 0,
         }
     }
 
     pub fn has(&self, no: u32) -> bool {
-        assert!(no < self.len);
+        assert!(no < self.cap);
         BitSet::has(&self.bitmap, no as usize)
     }
 
+    /// # TODO: Don't Panic!
     pub fn set(&mut self, no: u32) -> bool {
-        assert!(no < self.len);
+        assert!(no < self.cap);
         let is_already_set = BitSetMut::set(&mut self.bitmap, no as usize).unwrap();
         if !is_already_set {
-            self.completed_count += 1;
+            self.len += 1;
 
             if no == self.filled_upto {
                 self.advance_filled_upto();
@@ -38,12 +39,12 @@ impl FileBitSet {
     }
 
     pub fn is_full(&self) -> bool {
-        self.completed_count == self.len
+        self.len == self.cap
     }
 
-    /// TODO: Make It Faster
+    /// # TODO: Make It Faster
     fn advance_filled_upto(&mut self) {
-        while self.filled_upto < self.len && self.has(self.filled_upto) {
+        while self.filled_upto < self.cap && self.has(self.filled_upto) {
             self.filled_upto += 1;
         }
     }
@@ -71,5 +72,28 @@ mod tests {
         }
 
         assert_eq!(s.filled_upto(), size);
+    }
+
+    #[test]
+    fn test_filled_len() {
+        let mut s = FileBitSet::new(100);
+
+        s.set(10);
+        assert_eq!(s.filled_upto(), 0);
+        assert_eq!(s.len, 1);
+
+        assert_eq!(s.set(0), false);
+        assert_eq!(s.filled_upto(), 1);
+        assert_eq!(s.len, 2);
+
+        assert_eq!(s.set(0), true); // duplicate doesn't inc len
+        assert_eq!(s.filled_upto(), 1);
+        assert_eq!(s.len, 2);
+
+        for no in 1..=9 {
+            s.set(no);
+        }
+        assert_eq!(s.filled_upto(), 11);
+        assert_eq!(s.len, 11);
     }
 }
