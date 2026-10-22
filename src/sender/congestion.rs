@@ -5,7 +5,7 @@ use std::{
 };
 
 use super::utils::VecExt;
-use crate::protocol::{DataFrame, DataFrameLike};
+use crate::protocol::{AckFrame, DataFrame, DataFrameLike};
 
 #[derive(Debug)]
 pub struct Payload {
@@ -77,8 +77,8 @@ impl FlowControl {
         }
     }
 
-    pub fn mark_as_complete(&mut self, no: u32) -> Option<Instant> {
-        let found = |p: &Payload| p.data.no() == no;
+    pub fn mark_as_complete(&mut self, ack: AckFrame) -> Option<Instant> {
+        let found = |p: &Payload| p.data.no() == ack.no();
 
         let removed = self
             .in_flight
@@ -160,9 +160,9 @@ impl LostList {
         self.set.is_empty()
     }
 
-    pub fn mark_as_complete(&mut self, no: u32) -> Option<Instant> {
+    pub fn mark_as_complete(&mut self, ack: AckFrame) -> Option<Instant> {
         self.set
-            .find_remove(|payload| payload.data.no() == no)
+            .find_remove(|payload| payload.data.no() == ack.no())
             .map(|p| p.send_at)
     }
 }
@@ -180,6 +180,10 @@ mod tests {
     impl FlowControl {
         fn send_frame(&mut self, no: u32) {
             self.send(frame(no));
+        }
+
+        fn on_ack(&mut self, no: u32) {
+            self.mark_as_complete(AckFrame::new(no, 0));
         }
 
         fn mark_as_lost(&mut self, no: u32) {
@@ -217,9 +221,9 @@ mod tests {
 
         assert_eq!(c.remaining_capacity(), 0);
 
-        c.mark_as_complete(0);
-        c.mark_as_complete(2);
-        c.mark_as_complete(1);
+        c.on_ack(0);
+        c.on_ack(2);
+        c.on_ack(1);
 
         assert_eq!(c.remaining_capacity(), 3);
         c.collect_lost_frames().unwrap();
@@ -241,8 +245,8 @@ mod tests {
 
         c.mark_as_lost(0);
         c.mark_as_lost(1);
-        c.mark_as_complete(2);
-        c.mark_as_complete(3);
+        c.on_ack(2);
+        c.on_ack(3);
 
         c.send_frame(4);
         c.send_frame(5);
@@ -255,10 +259,10 @@ mod tests {
         assert_eq!(c.capacity, 1);
         assert_eq!(c.len(), 2);
 
-        c.mark_as_complete(4);
+        c.on_ack(4);
         assert_eq!(c.remaining_capacity(), 0);
 
-        c.mark_as_complete(5);
+        c.on_ack(5);
         assert_eq!(c.remaining_capacity(), 1);
 
         assert_eq!(c.reuse_free_space, 1);
@@ -284,18 +288,18 @@ mod tests {
         assert_eq!(c.capacity, 2);
 
         c.send_frame(0);
-        c.mark_as_complete(0);
+        c.on_ack(0);
 
         c.send_frame(1);
-        c.mark_as_complete(1);
+        c.on_ack(1);
 
         assert!(c.collect_lost_frames().unwrap().is_empty());
 
         c.send_frame(0);
         c.send_frame(1);
 
-        c.mark_as_complete(0);
-        c.mark_as_complete(1);
+        c.on_ack(0);
+        c.on_ack(1);
 
         c.collect_lost_frames().unwrap();
         assert_eq!(c.step, 3);
@@ -312,8 +316,8 @@ mod tests {
 
         assert_eq!(c.remaining_capacity(), 5);
 
-        c.mark_as_complete(0);
-        c.mark_as_complete(2);
+        c.on_ack(0);
+        c.on_ack(2);
         assert_eq!(c.remaining_capacity(), 7);
 
         c.send_frame(3);
@@ -350,7 +354,7 @@ mod tests {
             let cap = c.remaining_capacity();
             (0..cap).for_each(|no| c.send_frame(no as u32));
             (0..cap).for_each(|no| {
-                c.mark_as_complete(no as u32);
+                c.on_ack(no as u32);
             });
             c.collect_lost_frames().unwrap();
             (c.step, c.capacity)
@@ -384,8 +388,8 @@ mod tests {
         c.process_lost(Duration::from_millis(150));
         assert_eq!(c.lost_in_flight.len(), 3);
 
-        c.mark_as_complete(0);
-        c.mark_as_complete(3);
+        c.on_ack(0);
+        c.on_ack(3);
         c.process_lost(Duration::from_millis(50));
         assert_eq!(c.lost_in_flight.len(), 4);
 
@@ -408,15 +412,15 @@ mod tests {
             ..Default::default()
         };
 
-        c.mark_as_complete(0);
+        c.on_ack(0);
         assert_eq!(c.reuse_free_space, 0);
         assert_eq!(c.remaining_capacity(), 0);
 
-        c.mark_as_complete(1);
+        c.on_ack(1);
         assert_eq!(c.reuse_free_space, 0);
         assert_eq!(c.remaining_capacity(), 0);
 
-        c.mark_as_complete(2);
+        c.on_ack(2);
         assert_eq!(c.reuse_free_space, 1);
         assert_eq!(c.remaining_capacity(), 1);
     }

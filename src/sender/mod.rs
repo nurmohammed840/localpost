@@ -98,8 +98,8 @@ where
 
             let ack = self.recv_ack()?.and_then(|ack| {
                 self.outgoing
-                    .mark_as_complete(ack.no())
-                    .or_else(|| self.lost_list.mark_as_complete(ack.no()))
+                    .mark_as_complete(ack)
+                    .or_else(|| self.lost_list.mark_as_complete(ack))
             });
 
             if let Some(sended_at) = ack {
