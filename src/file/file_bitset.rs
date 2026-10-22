@@ -1,5 +1,7 @@
 use lipi::{BitSet, BitSetMut};
 
+use crate::Result;
+
 #[derive(Debug)]
 pub struct FileBitSet {
     bitmap: Vec<u8>,
@@ -24,9 +26,11 @@ impl FileBitSet {
         BitSet::has(&self.bitmap, no as usize)
     }
 
-    /// # TODO: Don't Panic!
-    pub fn set(&mut self, no: u32) -> bool {
-        assert!(no < self.cap);
+    pub fn set(&mut self, no: u32) -> Result<bool> {
+        if no >= self.cap {
+            return Err(format!("frame number {no} out of bounds (capacity: {})", self.cap).into());
+        }
+
         let is_already_set = BitSetMut::set(&mut self.bitmap, no as usize).unwrap();
         if !is_already_set {
             self.len += 1;
@@ -35,7 +39,7 @@ impl FileBitSet {
                 self.advance_filled_upto();
             }
         }
-        is_already_set
+        Ok(is_already_set)
     }
 
     pub fn is_full(&self) -> bool {
@@ -67,7 +71,7 @@ mod tests {
         for curr in nums.chunks_mut(200) {
             fastrand::shuffle(curr);
             for no in curr {
-                s.set(*no);
+                s.set(*no).unwrap();
             }
         }
 
@@ -78,20 +82,22 @@ mod tests {
     fn test_filled_len() {
         let mut s = FileBitSet::new(100);
 
-        s.set(10);
+        assert!(s.set(100).is_err());
+
+        s.set(10).unwrap();
         assert_eq!(s.filled_upto(), 0);
         assert_eq!(s.len, 1);
 
-        assert_eq!(s.set(0), false);
+        assert_eq!(s.set(0).unwrap(), false);
         assert_eq!(s.filled_upto(), 1);
         assert_eq!(s.len, 2);
 
-        assert_eq!(s.set(0), true); // duplicate doesn't inc len
+        assert_eq!(s.set(0).unwrap(), true); // duplicate doesn't inc len
         assert_eq!(s.filled_upto(), 1);
         assert_eq!(s.len, 2);
 
         for no in 1..=9 {
-            s.set(no);
+            s.set(no).unwrap();
         }
         assert_eq!(s.filled_upto(), 11);
         assert_eq!(s.len, 11);

@@ -58,9 +58,10 @@ where
                 return Ok(Some(error));
             }
 
+            let is_already_set = self.bitset.set(frame.no())?;
+
             self.send_ack(&frame)?;
 
-            let is_already_set = self.bitset.set(frame.no());
             if is_already_set {
                 continue;
             }
