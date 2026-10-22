@@ -57,7 +57,7 @@ where
         self.socket.set_read_timeout(Some(rto))?;
 
         let len = match self.socket.recv(&mut self.recv_buf) {
-            Ok(len) if len < 4 => return Err("small read".into()),
+            Ok(len) if len < 8 => return Err("small frame".into()),
             Err(err) if matches!(err.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {
                 return Ok(None);
             }
@@ -70,7 +70,7 @@ where
             return Err(io::Error::other(error).into());
         }
 
-        Ok(Some(frame.ack()))
+        Ok(Some(AckFrame::from(frame)))
     }
 
     pub fn init_send(&mut self) -> Result<()> {

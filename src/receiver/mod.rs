@@ -45,7 +45,8 @@ where
     }
 
     pub fn send_ack(&mut self, frame: &DataFrame) -> Result<()> {
-        self.socket.send(frame.ack().as_bytes())?;
+        let cumulative = self.bitset.filled_upto();
+        self.socket.send(&frame.ack(cumulative).to_bytes())?;
         Ok(())
     }
 

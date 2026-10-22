@@ -122,16 +122,18 @@ impl fmt::Debug for DataFrame {
 }
 
 pub trait DataFrameLike {
+    /// length of bytes slice must be >= 8 
     fn as_bytes(&self) -> &[u8];
 
-    fn ack(&self) -> AckFrame {
+    fn ack(&self, cumulative: u32) -> AckFrame {
         AckFrame {
-            number: self.as_bytes()[0..4].try_into().unwrap(),
+            current: self.no(),
+            cumulative,
         }
     }
 
     fn no(&self) -> u32 {
-        self.ack().no()
+        u32::from_le_bytes(self.as_bytes()[0..4].try_into().unwrap())
     }
 
     fn data(&self) -> &[u8] {
@@ -162,7 +164,7 @@ impl DataFrame {
     }
 
     pub fn try_from(buf: Vec<u8>) -> Result<Self> {
-        if buf.len() < 4 {
+        if buf.len() < 8 {
             return Err("small frame".into());
         }
         Ok(Self {
@@ -171,27 +173,40 @@ impl DataFrame {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct AckFrame {
-    number: [u8; 4],
+    current: u32,
+    cumulative: u32,
 }
 
 impl AckFrame {
-    pub fn new(no: u32) -> Self {
+    pub fn new(no: u32, cumulative: u32) -> Self {
         Self {
-            number: no.to_le_bytes(),
+            current: no,
+            cumulative,
         }
     }
 
-    pub fn from(number: [u8; 4]) -> Self {
-        Self { number }
+    pub fn from(bytes: &[u8]) -> Self {
+        Self {
+            current: u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
+            cumulative: u32::from_le_bytes(bytes[4..8].try_into().unwrap()),
+        }
     }
 
     pub fn no(&self) -> u32 {
-        u32::from_le_bytes(self.number)
+        self.current
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.number
+    pub fn cumulative(&self) -> u32 {
+        self.cumulative
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(8);
+        buf.extend_from_slice(&self.current.to_le_bytes());
+        buf.extend_from_slice(&self.cumulative.to_le_bytes());
+        buf
     }
 }
 
