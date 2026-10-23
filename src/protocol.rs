@@ -164,9 +164,6 @@ impl DataFrame {
     }
 
     pub fn try_from(buf: Box<[u8]>) -> Result<Self> {
-        if buf.len() < 8 {
-            return Err("small frame".into());
-        }
         let frame = Self { buf };
         ErrorFrame::check(&frame)?;
         Ok(frame)
@@ -187,11 +184,14 @@ impl AckFrame {
         }
     }
 
-    pub fn from(bytes: &[u8]) -> Self {
-        Self {
+    pub fn try_from(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() < 8 {
+            return Err("small frame".into());
+        }
+        Ok(Self {
             current: u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
             cumulative: u32::from_le_bytes(bytes[4..8].try_into().unwrap()),
-        }
+        })
     }
 
     pub fn no(&self) -> u32 {
@@ -265,6 +265,10 @@ impl ErrorFrame {
     }
 
     pub fn check(frame: impl DataFrameLike) -> Result<()> {
+        if frame.as_bytes().len() < 4 {
+            return Err("small frame".into());
+        }
+
         if frame.no() != u32::MAX {
             return Ok(());
         }
