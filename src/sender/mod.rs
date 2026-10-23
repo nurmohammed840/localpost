@@ -67,7 +67,7 @@ where
         let frame = &self.recv_buf[..len];
 
         if let Some(error) = ErrorFrame::parse_from(frame)? {
-            return Err(io::Error::other(error).into());
+            return Err(error.into());
         }
 
         Ok(Some(AckFrame::from(frame)))

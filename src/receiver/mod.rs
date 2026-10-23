@@ -52,7 +52,7 @@ where
         Ok(())
     }
 
-    pub fn init_receive(&mut self) -> Result<Option<ErrorFrame>> {
+    pub fn init_receive(&mut self) -> Result<()> {
         loop {
             let packets = self.recv_packets()?;
             let mut frames = Vec::with_capacity(packets.len());
@@ -60,11 +60,6 @@ where
             // This loop update bitset before sending acknowledgement
             for packet in packets {
                 let frame = DataFrame::try_from(packet)?;
-
-                if let Some(error) = ErrorFrame::parse_from(&frame)? {
-                    return Ok(Some(error));
-                }
-
                 frames.push((self.bitset.set(frame.no())?, frame));
             }
 
@@ -80,7 +75,7 @@ where
 
             if self.bitset.is_full() {
                 self.writer.flush()?;
-                return Ok(None);
+                return Ok(());
             }
 
             if self.writer.total_bytes() >= self.flush_threshold {

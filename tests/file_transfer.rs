@@ -73,9 +73,7 @@ fn test_file_transfer() -> Result<()> {
     let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
 
     receiver.flush_threshold = 8 * 1024;
-
-    let proto_err = receiver.init_receive()?;
-    assert!(proto_err.is_none());
+    receiver.init_receive()?;
     Ok(())
 }
 

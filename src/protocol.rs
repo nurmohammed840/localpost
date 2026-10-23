@@ -167,7 +167,11 @@ impl DataFrame {
         if buf.len() < 8 {
             return Err("small frame".into());
         }
-        Ok(Self { buf })
+        let frame = Self { buf };
+        if let Some(error) = ErrorFrame::parse_from(&frame)? {
+            return Err(error.into());
+        }
+        Ok(frame)
     }
 }
 

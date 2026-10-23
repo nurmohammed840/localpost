@@ -176,12 +176,13 @@ impl Conn {
         let mut receiver = FileReceiver::new(writer, socket, &file_info)?;
 
         thread::spawn(move || match receiver.init_receive() {
-            Ok(None) => {}
-            Ok(Some(proto_error)) => {
-                println!("protocol error: {proto_error:#?}");
-            }
-            Err(io_err) => {
-                let _ = receiver.send_error(io_err.to_string());
+            Ok(()) => {}
+            Err(err) => {
+                if let Some(proto_error) = err.downcast_ref::<ErrorFrame>() {
+                    println!("protocol error: {proto_error:#?}");
+                } else {
+                    let _ = receiver.send_error(err.to_string());
+                }
             }
         });
 
