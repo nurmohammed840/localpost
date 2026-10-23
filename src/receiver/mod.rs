@@ -37,11 +37,13 @@ where
         })
     }
 
-    pub fn recv_frame(&mut self) -> Result<DataFrame> {
-        let mut buf = vec![0; self.frame_size.into()];
-        let len = self.socket.recv(&mut buf)?;
-        buf.truncate(len);
-        DataFrame::try_from(buf)
+    pub fn recv_packets(&mut self) -> Result<Vec<Box<[u8]>>> {
+        let mut packets = Vec::new();
+
+        self.socket
+            .recv_many(&mut packets, self.frame_size, u8::MAX)?;
+
+        Ok(packets)
     }
 
     pub fn send_ack(&mut self, frame: &DataFrame) -> Result<()> {
@@ -52,21 +54,29 @@ where
 
     pub fn init_receive(&mut self) -> Result<Option<ErrorFrame>> {
         loop {
-            let frame = self.recv_frame()?;
+            let packets = self.recv_packets()?;
+            let mut frames = Vec::with_capacity(packets.len());
 
-            if let Some(error) = ErrorFrame::parse_from(&frame)? {
-                return Ok(Some(error));
+            // This loop update bitset before sending acknowledgement
+            for packet in packets {
+                let frame = DataFrame::try_from(packet)?;
+
+                if let Some(error) = ErrorFrame::parse_from(&frame)? {
+                    return Ok(Some(error));
+                }
+
+                frames.push((self.bitset.set(frame.no())?, frame));
             }
 
-            let is_already_set = self.bitset.set(frame.no())?;
+            for (is_already_set, frame) in frames {
+                self.send_ack(&frame)?;
 
-            self.send_ack(&frame)?;
+                if is_already_set {
+                    continue;
+                }
 
-            if is_already_set {
-                continue;
+                self.writer.write(frame);
             }
-
-            self.writer.write(frame);
 
             if self.bitset.is_full() {
                 self.writer.flush()?;

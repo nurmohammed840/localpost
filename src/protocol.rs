@@ -163,13 +163,11 @@ impl DataFrame {
         }
     }
 
-    pub fn try_from(buf: Vec<u8>) -> Result<Self> {
+    pub fn try_from(buf: Box<[u8]>) -> Result<Self> {
         if buf.len() < 8 {
             return Err("small frame".into());
         }
-        Ok(Self {
-            buf: buf.into_boxed_slice(),
-        })
+        Ok(Self { buf })
     }
 }
 
