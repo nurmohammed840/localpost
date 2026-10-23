@@ -168,9 +168,7 @@ impl DataFrame {
             return Err("small frame".into());
         }
         let frame = Self { buf };
-        if let Some(error) = ErrorFrame::parse_from(&frame)? {
-            return Err(error.into());
-        }
+        ErrorFrame::check(&frame)?;
         Ok(frame)
     }
 }
@@ -266,14 +264,14 @@ impl ErrorFrame {
         buf
     }
 
-    pub fn parse_from(frame: impl DataFrameLike) -> Result<Option<Self>> {
+    pub fn check(frame: impl DataFrameLike) -> Result<()> {
         if frame.no() != u32::MAX {
-            return Ok(None);
+            return Ok(());
         }
         let mut data = frame.data();
         let code: u8 = lipi::Decode::decode(&mut data)?;
         let msg = String::from_utf8(data.to_vec())?;
-        Ok(Some(Self::new(code, msg)))
+        Err(Self::new(code, msg).into())
     }
 }
 
@@ -323,9 +321,10 @@ mod tests {
     }
 
     #[test]
-    fn error_frame_parsing() -> Result<()> {
+    fn error_frame_check() -> Result<()> {
         let err = ErrorFrame::new(42, "Hello, World!");
-        let err = ErrorFrame::parse_from(err.to_bytes())?.unwrap();
+        let err = ErrorFrame::check(err.to_bytes()).err().unwrap();
+        let err = err.downcast_ref::<ErrorFrame>().unwrap();
         assert_eq!(err.code, ErrorCode::Unknown(42));
         assert_eq!(err.msg, "Hello, World!");
         Ok(())
