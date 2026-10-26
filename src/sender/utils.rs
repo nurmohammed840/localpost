@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use std::collections::VecDeque;
 
 pub trait VecExt<T> {
@@ -17,7 +19,6 @@ impl<T> VecExt<T> for Vec<T> {
     }
 }
 
-#[cfg(test)]
 pub trait IteratorExt: Iterator + Sized {
     fn extend_into<E: Extend<Self::Item>>(self, collection: &mut E) -> &mut E
     where
@@ -28,5 +29,4 @@ pub trait IteratorExt: Iterator + Sized {
     }
 }
 
-#[cfg(test)]
 impl<I: Iterator> IteratorExt for I {}

@@ -91,15 +91,15 @@ where
                 return Err(io::Error::new(ErrorKind::TimedOut, msg).into());
             }
 
-            let ack = self.recv_ack()?.and_then(|ack| {
+            let rtts = self.recv_ack()?.map(|ack| {
+                self.last_seen = Instant::now();
                 self.outgoing
                     .mark_as_complete(ack)
-                    .or_else(|| self.lost_list.mark_as_complete(ack))
+                    .chain(self.lost_list.mark_as_complete(ack))
             });
 
-            if let Some(sended_at) = ack {
-                self.rtt_estimator.update(sended_at.elapsed());
-                self.last_seen = Instant::now();
+            for rtt in rtts.into_iter().flatten() {
+                self.rtt_estimator.update(rtt.elapsed());
             }
 
             self.outgoing.process_lost(self.rtt_estimator.rto());

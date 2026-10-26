@@ -198,7 +198,12 @@ impl AckFrame {
         self.current
     }
 
-    pub fn cumulative(&self) -> u32 {
+    /// The length of contiguous sequence of frames received by the receiver in order.
+    ///
+    /// For example: If frames arrive in the order `2, 1, 4, 0, 5`
+    /// Then cumulative length is `3`, Since frames `0, 1, 2` have been received.
+    /// while frame `3` is missing.
+    pub fn cumulative_len(&self) -> u32 {
         self.cumulative
     }
 

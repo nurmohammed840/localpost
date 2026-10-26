@@ -1,11 +1,9 @@
+use crate::protocol::{AckFrame, DataFrame, DataFrameLike};
 use std::{
     cmp::Reverse,
     collections::VecDeque,
     time::{Duration, Instant},
 };
-
-use super::utils::VecExt;
-use crate::protocol::{AckFrame, DataFrame, DataFrameLike};
 
 #[derive(Debug)]
 pub struct Payload {
@@ -29,6 +27,7 @@ pub struct FlowControl {
     capacity: usize,
     reuse_free_space: usize,
 
+    // Packet numbers should be unique in across all 3 set
     in_flight: VecDeque<Payload>,
     queued_in_flight: VecDeque<Payload>,
     lost_in_flight: VecDeque<Payload>,
@@ -77,20 +76,42 @@ impl FlowControl {
         }
     }
 
-    pub fn mark_as_complete(&mut self, ack: AckFrame) -> Option<Instant> {
-        let found = |p: &Payload| p.data.no() == ack.no();
+    pub fn mark_as_complete(&mut self, ack: AckFrame) -> RTTs {
+        let mut current: Option<Instant> = None;
+        let mut cumulative: Option<Instant> = None;
+        let mut removed = 0;
 
-        let removed = self
-            .in_flight
-            .find_remove(found)
-            .or_else(|| self.queued_in_flight.find_remove(found))
-            .or_else(|| self.lost_in_flight.find_remove(found));
+        // TODO: replace with `[VecDeque::extract_if]`
+        let mut f = |p: &Payload| {
+            let no = p.data.no();
 
-        if removed.is_some() && self.remaining_capacity() > self.reuse_free_space {
-            self.reuse_free_space += 1;
+            let acked = no == ack.no() || no < ack.cumulative_len();
+            if !acked {
+                return true; // keep
+            }
+
+            if no == ack.no() {
+                current = Some(p.send_at)
+            } else if no + 1 == ack.cumulative_len() {
+                cumulative = Some(p.send_at)
+            }
+
+            removed += 1;
+            false
+        };
+
+        self.in_flight.retain(&mut f);
+        self.queued_in_flight.retain(&mut f);
+        self.lost_in_flight.retain(&mut f);
+
+        if removed != 0 && self.remaining_capacity() > self.reuse_free_space {
+            self.reuse_free_space += removed;
         }
 
-        removed.map(|p| p.send_at)
+        RTTs {
+            current,
+            cumulative,
+        }
     }
 
     pub fn process_lost(&mut self, rto: Duration) {
@@ -160,17 +181,54 @@ impl LostList {
         self.set.is_empty()
     }
 
-    pub fn mark_as_complete(&mut self, ack: AckFrame) -> Option<Instant> {
-        self.set
-            .find_remove(|payload| payload.data.no() == ack.no())
-            .map(|p| p.send_at)
+    pub fn mark_as_complete(&mut self, ack: AckFrame) -> RTTs {
+        let mut current: Option<Instant> = None;
+        let mut cumulative: Option<Instant> = None;
+
+        // TODO: replace with `[VecDeque::extract_if]`
+        let f = |p: &Payload| {
+            let no = p.data.no();
+
+            let acked = no == ack.no() || no < ack.cumulative_len();
+            if !acked {
+                return true; // keep
+            }
+
+            if no == ack.no() {
+                current = Some(p.send_at)
+            } else if no + 1 == ack.cumulative_len() {
+                cumulative = Some(p.send_at)
+            }
+
+            false
+        };
+
+        self.set.retain(f);
+
+        RTTs {
+            current,
+            cumulative,
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct RTTs {
+    current: Option<Instant>,
+    cumulative: Option<Instant>,
+}
+
+impl Iterator for RTTs {
+    type Item = Instant;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.current.take().or_else(|| self.cumulative.take())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sender::utils::IteratorExt;
+    use crate::sender::utils::{IteratorExt, VecExt};
     use std::thread;
 
     fn frame(no: u32) -> DataFrame {
