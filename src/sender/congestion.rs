@@ -144,7 +144,7 @@ impl FlowControl {
 
         let lost_count = self.lost_in_flight.len();
         if lost_count != 0 {
-            self.step = 1;
+            self.step = 0;
             self.capacity = self.capacity.saturating_sub(lost_count * 2).max(1);
             lost_list.add_lost_frames(self.lost_in_flight.drain(..));
         } else if self.all_space_are_used() {
@@ -313,7 +313,7 @@ mod tests {
         assert_eq!(lost.pop().unwrap().no(), 0);
         assert_eq!(lost.pop().unwrap().no(), 1);
 
-        assert_eq!(c.step, 1);
+        assert_eq!(c.step, 0);
         assert_eq!(c.capacity, 1);
         assert_eq!(c.len(), 2);
 
@@ -328,11 +328,9 @@ mod tests {
         c.send_frame(0);
 
         c.collect_lost_frames().unwrap();
-        c.send_frame(1);
-
-        assert_eq!(c.step, 2);
-        assert_eq!(c.capacity, 2);
-        assert_eq!(c.len(), 2);
+        assert_eq!(c.step, 1);
+        assert_eq!(c.capacity, 1);
+        assert_eq!(c.len(), 1);
 
         assert_frame_order(&c);
     }
@@ -392,7 +390,7 @@ mod tests {
 
         println!("c: {:#?}", c);
 
-        assert_eq!(c.step, 1);
+        assert_eq!(c.step, 0);
         assert_eq!(c.capacity, 6);
         assert_eq!(c.reuse_free_space, 0);
         assert_eq!(c.remaining_capacity(), 5);
