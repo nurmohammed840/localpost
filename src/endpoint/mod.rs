@@ -1,3 +1,6 @@
+mod client;
+mod server;
+
 use crate::{
     Result,
     file::{FileReader, FileWriter, utils::write_all_vectored},
@@ -14,11 +17,11 @@ use std::{
     time::Duration,
 };
 
-pub struct EndPoint {
+pub struct Listener {
     tcp: TcpListener,
 }
 
-impl EndPoint {
+impl Listener {
     pub fn new(port: u16) -> Result<Self> {
         match local_ip_address::local_ip() {
             Ok(local_ip) => Self::listen((local_ip, port)),
@@ -27,9 +30,8 @@ impl EndPoint {
     }
 
     pub fn listen(addr: impl ToSocketAddrs) -> Result<Self> {
-        Ok(EndPoint {
-            tcp: TcpListener::bind(addr)?,
-        })
+        let tcp = TcpListener::bind(addr)?;
+        Ok(Listener { tcp })
     }
 
     pub fn local_ip(&self) -> io::Result<IpAddr> {
@@ -191,7 +193,7 @@ impl Conn {
 }
 
 pub fn run_endpoint(port: u16) -> Result<()> {
-    let mut server = EndPoint::new(port)?;
+    let mut server = Listener::new(port)?;
 
     let mut accept_conn = || -> Result<()> {
         let (info, mut conn) = server.accept()?;
@@ -225,7 +227,7 @@ mod tests {
 
     #[test]
     fn test_endpoint() -> Result<()> {
-        let mut server = EndPoint::new(PORT)?;
+        let mut server = Listener::new(PORT)?;
         let addr = server.tcp.local_addr()?;
 
         thread::scope(|c| {
