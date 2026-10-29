@@ -9,12 +9,34 @@ pub struct Endpoint {
 
 impl Endpoint {
     fn receive_file(&mut self, file_info: FileInfo, file: FileObj) -> Result<()> {
-        let _writer = FileWriter::new(file, file_info.frame_size - 4);
+        let writer = FileWriter::new(file, file_info.frame_size - 4);
+
+        let sender_socket_addr = (self.conn.peer_addr.ip(), file_info.tid.udp_port);
+        let receiver_socket = self.conn.create_udp_socket()?;
+
+        receiver_socket.connect(sender_socket_addr)?;
+
+        self.conn.send(TransferID {
+            udp_port: receiver_socket.local_addr()?.port(),
+            file_id: file_info.tid.file_id,
+        })?;
+
+        let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
+
+        thread::spawn(move || {
+            if let Err(err) = receiver.init_receive() {
+                if let Some(proto_error) = err.downcast_ref::<ErrorFrame>() {
+                    println!("protocol error: {proto_error:#?}");
+                } else {
+                    let _ = receiver.send_error(err.to_string());
+                }
+            }
+        });
         Ok(())
     }
 }
 
-pub fn run(port: u16, interface: Arc<dyn ServerInterface>) -> Result<()> {
+pub fn run(port: u16, interface: Arc<dyn Connection>) -> Result<()> {
     let mut listener = Listener::new(port)?;
     let mut id = 0;
 
@@ -22,29 +44,27 @@ pub fn run(port: u16, interface: Arc<dyn ServerInterface>) -> Result<()> {
         id += 1;
 
         let (info, mut endpoint) = listener.accept()?;
-
         let interface = interface.clone();
 
-        let mut accept_conn =
-            move |interface: &dyn ServerInterface, info: &SystemInfo| -> Result<()> {
-                endpoint.conn.send(Hello::message())?;
+        let mut accept_conn = move |interface: &dyn Connection, info: &SystemInfo| -> Result<()> {
+            endpoint.conn.send(Hello::message())?;
 
-                loop {
-                    let file_info = endpoint.conn.next_req()?;
-                    let Some(file) = interface.file_request(id, &info, &file_info)? else {
-                        continue;
-                    };
-                    endpoint.receive_file(file_info, file)?;
-                }
-            };
+            loop {
+                let file_info = endpoint.conn.next_req()?;
+                let Some(file) = interface.file_request(id, &info, &file_info)? else {
+                    continue;
+                };
+                endpoint.receive_file(file_info, file)?;
+            }
+        };
 
         thread::spawn(move || {
-            let should_accept = interface.new_connection(id, &info);
+            let should_accept = interface.new(id, &info);
             if !should_accept {
                 return;
             }
             let error = accept_conn(&*interface, &info).err();
-            interface.connection_closed(id, error, info);
+            interface.closed(id, error, info);
         });
         Ok(())
     };
@@ -56,14 +76,13 @@ pub fn run(port: u16, interface: Arc<dyn ServerInterface>) -> Result<()> {
     }
 }
 
-pub trait WriteSeek: Write + Seek {}
-impl<T: Write + Seek + ?Sized> WriteSeek for T {}
-
+pub trait WriteSeek: Write + Seek + Send + Sync {}
+impl<T: Write + Seek + ?Sized + Send + Sync> WriteSeek for T {}
 pub type FileObj = Box<dyn WriteSeek>;
 
-pub trait ServerInterface: Send + Sync {
+pub trait Connection: Send + Sync {
     // return `true` to accept connection
-    fn new_connection(&self, _id: u32, info: &SystemInfo) -> bool {
+    fn new(&self, _id: u32, info: &SystemInfo) -> bool {
         println!("New Connection: {info:#?}");
         true
     }
@@ -86,5 +105,5 @@ pub trait ServerInterface: Send + Sync {
         Ok(Some(Box::new(file)))
     }
 
-    fn connection_closed(&self, _id: u32, _: Option<DynError>, _: SystemInfo);
+    fn closed(&self, _id: u32, _: Option<DynError>, _: SystemInfo);
 }
