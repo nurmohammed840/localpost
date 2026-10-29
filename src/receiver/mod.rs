@@ -1,5 +1,10 @@
-use std::io::{Seek, Write};
+mod status;
+use std::{
+    io::{Seek, Write},
+    sync::Arc,
+};
 
+pub use crate::receiver::status::RecvStatus;
 use crate::{
     Result,
     protocol::{DataFrameLike, ErrorCode, ErrorFrame, FileInfo},
@@ -52,7 +57,7 @@ where
         Ok(())
     }
 
-    pub fn init_receive(&mut self) -> Result<()> {
+    pub fn init_receive(&mut self, status: Arc<RecvStatus>) -> Result<()> {
         loop {
             let packets = self.recv_packets()?;
             let mut frames = Vec::with_capacity(packets.len());
@@ -63,6 +68,8 @@ where
                 frames.push((self.bitset.set(frame.no())?, frame));
             }
 
+            status.inc_total_recv_count(frames.len() as u32);
+
             for (is_already_set, frame) in frames {
                 self.send_ack(&frame)?;
 
@@ -71,6 +78,7 @@ where
                 }
 
                 self.writer.write(frame);
+                status.inc_recv_count();
             }
 
             if self.bitset.is_full() {

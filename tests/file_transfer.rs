@@ -1,9 +1,5 @@
 use localpost::{
-    Result,
-    file::{FileReader, FileWriter},
-    protocol::FileInfo,
-    receiver::FileReceiver,
-    sender::FileSender,
+    Result, file::{FileReader, FileWriter}, protocol::FileInfo, receiver::{FileReceiver, RecvStatus}, sender::FileSender,
 };
 use std::{
     io::{self, Read, Seek, SeekFrom, Write},
@@ -72,8 +68,12 @@ fn test_file_transfer() -> Result<()> {
     let writer = FileWriter::new(MockFile::default(), frame_size);
     let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
 
+    let status = RecvStatus::new();
     receiver.flush_threshold = 8 * 1024;
-    receiver.init_receive()?;
+    receiver.init_receive(status.clone())?;
+
+    assert_eq!(status.recv_count(), file_info.num_of_frames());
+
     Ok(())
 }
 

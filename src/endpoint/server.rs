@@ -1,14 +1,19 @@
 use std::{fs::File, sync::Arc};
 
 use super::*;
-use crate::{DynError, Result};
+use crate::{DynError, Result, receiver::RecvStatus};
 
 pub struct Endpoint {
     pub conn: Conn,
 }
 
 impl Endpoint {
-    fn receive_file(&mut self, file_info: FileInfo, file: FileObj) -> Result<()> {
+    fn receive_file(
+        &mut self,
+        file_info: FileInfo,
+        file: FileObj,
+        status: Arc<RecvStatus>,
+    ) -> Result<()> {
         let writer = FileWriter::new(file, file_info.frame_size - 4);
 
         let sender_socket_addr = (self.conn.peer_addr.ip(), file_info.tid.udp_port);
@@ -24,7 +29,7 @@ impl Endpoint {
         let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
 
         thread::spawn(move || {
-            if let Err(err) = receiver.init_receive() {
+            if let Err(err) = receiver.init_receive(status) {
                 if let Some(proto_error) = err.downcast_ref::<ErrorFrame>() {
                     println!("protocol error: {proto_error:#?}");
                 } else {
@@ -51,10 +56,12 @@ pub fn run(port: u16, interface: Arc<dyn Connection>) -> Result<()> {
 
             loop {
                 let file_info = endpoint.conn.next_req()?;
-                let Some(file) = interface.file_request(id, &info, &file_info)? else {
+                let status = RecvStatus::new();
+                let Some(file) = interface.file_request(id, &info, &file_info, status.clone())?
+                else {
                     continue;
                 };
-                endpoint.receive_file(file_info, file)?;
+                endpoint.receive_file(file_info, file, status)?;
             }
         };
 
@@ -93,6 +100,7 @@ pub trait Connection: Send + Sync {
         _id: u32,
         _info: &SystemInfo,
         file_info: &FileInfo,
+        _status: Arc<RecvStatus>,
     ) -> Result<Option<FileObj>> {
         println!("write req: {file_info:#?}");
 

@@ -44,8 +44,11 @@ pub struct FileInfo {
 }
 
 impl FileInfo {
-    pub fn num_of_frames(&self) -> u64 {
-        self.size.div_ceil(self.frame_size as u64)
+    pub fn num_of_frames(&self) -> u32 {
+        self.size
+            .div_ceil(self.frame_size as u64)
+            .try_into()
+            .unwrap()
     }
 }
 
