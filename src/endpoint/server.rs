@@ -1,19 +1,20 @@
 use std::{fs::File, sync::Arc};
 
 use super::*;
-use crate::{DynError, Result, receiver::RecvStatus};
+use crate::{Result, receiver::RecvStatus};
 
 pub struct Endpoint {
     pub conn: Conn,
 }
 
 impl Endpoint {
-    fn receive_file(
-        &mut self,
-        file_info: FileInfo,
-        file: FileObj,
-        status: Arc<RecvStatus>,
-    ) -> Result<()> {
+    fn receive_file(&mut self, file_info: FileInfo, acceptor: FileAcceptor) -> Result<()> {
+        let FileAcceptor {
+            file,
+            status,
+            callback,
+        } = acceptor;
+
         let writer = FileWriter::new(file, file_info.frame_size - 4);
 
         let sender_socket_addr = (self.conn.peer_addr.ip(), file_info.tid.udp_port);
@@ -29,13 +30,15 @@ impl Endpoint {
         let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
 
         thread::spawn(move || {
-            if let Err(err) = receiver.init_receive(status) {
-                if let Some(proto_error) = err.downcast_ref::<ErrorFrame>() {
-                    println!("protocol error: {proto_error:#?}");
-                } else {
-                    let _ = receiver.send_error(err.to_string());
-                }
+            let result = receiver.init_receive(status);
+
+            if let Err(err) = &result
+                && !err.is::<ErrorFrame>()
+            {
+                let _ = receiver.send_error(err.to_string());
             }
+
+            callback(result);
         });
         Ok(())
     }
@@ -56,21 +59,21 @@ pub fn run(port: u16, interface: Arc<dyn Connection>) -> Result<()> {
 
             loop {
                 let file_info = endpoint.conn.next_req()?;
-                let status = RecvStatus::new();
-                let Some(file) = interface.file_request(id, &info, &file_info, status.clone())?
-                else {
+
+                let Some(acceptor) = interface.file_request(id, info, &file_info)? else {
                     continue;
                 };
-                endpoint.receive_file(file_info, file, status)?;
+
+                endpoint.receive_file(file_info, acceptor)?;
             }
         };
 
         thread::spawn(move || {
-            let should_accept = interface.new(id, &info);
+            let should_accept = interface.new_connection(id, &info);
             if !should_accept {
                 return;
             }
-            let error = accept_conn(&*interface, &info).err();
+            let error = accept_conn(&*interface, &info);
             interface.closed(id, error, info);
         });
         Ok(())
@@ -87,9 +90,35 @@ pub trait WriteSeek: Write + Seek + Send + Sync {}
 impl<T: Write + Seek + ?Sized + Send + Sync> WriteSeek for T {}
 pub type FileObj = Box<dyn WriteSeek>;
 
+pub type OnCompleteCallback = Box<dyn FnOnce(Result<()>) + Send + Sync>;
+
+pub struct FileAcceptor {
+    file: FileObj,
+    status: Arc<RecvStatus>,
+    callback: OnCompleteCallback,
+}
+
+impl FileAcceptor {
+    fn new<W, CB>(file: W, cb: CB) -> FileAcceptor
+    where
+        W: Write + Seek + Send + Sync + 'static,
+        CB: FnOnce(Result<()>) + Send + Sync + 'static,
+    {
+        Self {
+            file: Box::new(file),
+            callback: Box::new(cb),
+            status: RecvStatus::new(),
+        }
+    }
+
+    pub fn status(&self) -> Arc<RecvStatus> {
+        self.status.clone()
+    }
+}
+
 pub trait Connection: Send + Sync {
     // return `true` to accept connection
-    fn new(&self, _id: u32, info: &SystemInfo) -> bool {
+    fn new_connection(&self, _conn_id: u32, info: &SystemInfo) -> bool {
         println!("New Connection: {info:#?}");
         true
     }
@@ -97,11 +126,10 @@ pub trait Connection: Send + Sync {
     // return `true` to accept File
     fn file_request(
         &self,
-        _id: u32,
+        _conn_id: u32,
         _info: &SystemInfo,
         file_info: &FileInfo,
-        _status: Arc<RecvStatus>,
-    ) -> Result<Option<FileObj>> {
+    ) -> Result<Option<FileAcceptor>> {
         println!("write req: {file_info:#?}");
 
         let file = File::options()
@@ -110,8 +138,14 @@ pub trait Connection: Send + Sync {
             .write(true)
             .open("file.txt")?;
 
-        Ok(Some(Box::new(file)))
+        let acceptor = FileAcceptor::new(file, |res| {
+            if let Err(err) = res {
+                eprintln!("{err}")
+            }
+        });
+
+        Ok(Some(acceptor))
     }
 
-    fn closed(&self, _id: u32, _: Option<DynError>, _: SystemInfo);
+    fn closed(&self, _conn_id: u32, _: Result<()>, _: SystemInfo);
 }

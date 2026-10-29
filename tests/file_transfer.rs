@@ -1,5 +1,9 @@
 use localpost::{
-    Result, file::{FileReader, FileWriter}, protocol::FileInfo, receiver::{FileReceiver, RecvStatus}, sender::FileSender,
+    Result,
+    file::{FileReader, FileWriter},
+    protocol::FileInfo,
+    receiver::{FileReceiver, RecvStatus},
+    sender::FileSender,
 };
 use std::{
     io::{self, Read, Seek, SeekFrom, Write},

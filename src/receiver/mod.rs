@@ -36,7 +36,7 @@ where
         Ok(Self {
             writer,
             socket,
-            bitset: FileBitSet::new(file_info.num_of_frames().try_into()?),
+            bitset: FileBitSet::new(file_info.num_of_frames()),
             frame_size: file_info.frame_size,
             flush_threshold: 32 * 1024 * 1024,
         })
