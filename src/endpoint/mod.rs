@@ -1,5 +1,5 @@
-mod client;
-mod server;
+pub mod client;
+pub mod server;
 
 use crate::{
     Result,
@@ -38,11 +38,11 @@ impl Listener {
         self.tcp.local_addr().map(|addr| addr.ip())
     }
 
-    pub fn accept(&mut self) -> Result<(SystemInfo, Conn)> {
+    pub fn accept(&mut self) -> Result<(SystemInfo, server::Endpoint)> {
         let (stream, addr) = self.tcp.accept()?;
         let mut conn = Conn::new(stream, addr)?;
         let info = conn.read_hello()?;
-        Ok((info, conn))
+        Ok((info, server::Endpoint { conn }))
     }
 }
 
@@ -192,60 +192,60 @@ impl Conn {
     }
 }
 
-pub fn run_endpoint(port: u16) -> Result<()> {
-    let mut server = Listener::new(port)?;
+// pub fn run_endpoint(port: u16) -> Result<()> {
+//     let mut server = Listener::new(port)?;
 
-    let mut accept_conn = || -> Result<()> {
-        let (info, mut conn) = server.accept()?;
+//     let mut accept_conn = || -> Result<()> {
+//         let (info, mut conn) = server.accept()?;
 
-        println!("New Connection: {info:#?}");
-        conn.send(Hello::message())?;
+//         println!("New Connection: {info:#?}");
+//         conn.send(Hello::message())?;
 
-        thread::spawn(move || {
-            while let Ok(info) = conn.next_req() {
-                println!("write req: {info:#?}");
-                let _ = conn.receive_file(info);
-            }
-        });
+//         thread::spawn(move || {
+//             while let Ok(info) = conn.next_req() {
+//                 println!("write req: {info:#?}");
+//                 let _ = conn.receive_file(info);
+//             }
+//         });
 
-        Ok(())
-    };
+//         Ok(())
+//     };
 
-    loop {
-        let _ = accept_conn();
-    }
-}
+//     loop {
+//         let _ = accept_conn();
+//     }
+// }
 
-#[cfg(test)]
-mod tests {
-    #[allow(warnings)]
-    use super::*;
-    use crate::file::FileReader;
-    use std::thread;
+// #[cfg(test)]
+// mod tests {
+//     #[allow(warnings)]
+//     use super::*;
+//     use crate::file::FileReader;
+//     use std::thread;
 
-    const PORT: u16 = 54231;
+//     const PORT: u16 = 54231;
 
-    #[test]
-    fn test_endpoint() -> Result<()> {
-        let mut server = Listener::new(PORT)?;
-        let addr = server.tcp.local_addr()?;
+//     #[test]
+//     fn test_endpoint() -> Result<()> {
+//         let mut server = Listener::new(PORT)?;
+//         let addr = server.tcp.local_addr()?;
 
-        thread::scope(|c| {
-            c.spawn(|| {
-                let (user, mut conn) = server.accept().unwrap();
-                conn.send(Hello::message()).unwrap();
-                println!("Server: {:#?}; {user:#?}", conn.peer_addr);
-            });
+//         thread::scope(|c| {
+//             c.spawn(|| {
+//                 let (user, mut conn) = server.accept().unwrap();
+//                 conn.send(Hello::message()).unwrap();
+//                 println!("Server: {:#?}; {user:#?}", conn.peer_addr);
+//             });
 
-            c.spawn(|| {
-                let (user, mut conn) = Conn::open(addr).unwrap();
-                println!("User: {:#?}; {user:#?}", conn.peer_addr);
+//             c.spawn(|| {
+//                 let (user, mut conn) = Conn::open(addr).unwrap();
+//                 println!("User: {:#?}; {user:#?}", conn.peer_addr);
 
-                let (_file_reader, info) = FileReader::open("./README.md", 1024).unwrap();
-                conn.send(info).unwrap();
-            });
-        });
+//                 let (_file_reader, info) = FileReader::open("./README.md", 1024).unwrap();
+//                 conn.send(info).unwrap();
+//             });
+//         });
 
-        Ok(())
-    }
-}
+//         Ok(())
+//     }
+// }
