@@ -147,6 +147,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam-queue"
+version = "0.3.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03e8bd762f7479489c70ed6c768ddca99d7296857de437a68dcb2a94365b3fae"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.8.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a31eee39dddec8330830986fcd7625edb5a24ec90ea038215273bbc3adb08ac6"
+
+[[package]]
 name = "crypto-common"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -545,9 +560,12 @@ name = "localpost"
 version = "0.1.0"
 dependencies = [
  "fastrand",
+ "futures-io",
  "lipi",
  "local-ip-address",
+ "nio",
  "sysinfo",
+ "yamux",
 ]
 
 [[package]]
@@ -591,6 +609,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "mio"
+version = "1.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1788edb87fdc09c7e26304471e2f5be8cdefb1b6930d6e3985fc02ff53bf86ee"
+dependencies = [
+ "libc",
+ "log",
+ "wasi",
+ "windows-sys",
+]
+
+[[package]]
+name = "mpmc-channel"
+version = "0.0.0"
+source = "git+https://github.com/nurmohammed840/nio#8dba04b038fce54da9ac75c665608dddbfd347de"
+
+[[package]]
 name = "neli"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -618,6 +653,60 @@ dependencies = [
  "serde",
  "syn 2.0.119",
 ]
+
+[[package]]
+name = "nio"
+version = "0.2.0-rc.1"
+source = "git+https://github.com/nurmohammed840/nio#8dba04b038fce54da9ac75c665608dddbfd347de"
+dependencies = [
+ "crossbeam-queue",
+ "crossbeam-utils",
+ "futures-io",
+ "mio",
+ "nio-future",
+ "nio-macros",
+ "nio-metrics",
+ "nio-task",
+ "nio-threadpool",
+]
+
+[[package]]
+name = "nio-future"
+version = "0.0.1"
+source = "git+https://github.com/nurmohammed840/nio#8dba04b038fce54da9ac75c665608dddbfd347de"
+
+[[package]]
+name = "nio-macros"
+version = "0.3.0"
+source = "git+https://github.com/nurmohammed840/nio#8dba04b038fce54da9ac75c665608dddbfd347de"
+dependencies = [
+ "quote2",
+ "syn 3.0.6",
+]
+
+[[package]]
+name = "nio-metrics"
+version = "0.0.0"
+source = "git+https://github.com/nurmohammed840/nio#8dba04b038fce54da9ac75c665608dddbfd347de"
+
+[[package]]
+name = "nio-task"
+version = "0.2.0"
+source = "git+https://github.com/nurmohammed840/nio#8dba04b038fce54da9ac75c665608dddbfd347de"
+
+[[package]]
+name = "nio-threadpool"
+version = "0.1.0"
+source = "git+https://github.com/nurmohammed840/nio#8dba04b038fce54da9ac75c665608dddbfd347de"
+dependencies = [
+ "mpmc-channel",
+]
+
+[[package]]
+name = "nohash-hasher"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "ntapi"
@@ -704,6 +793,26 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-link",
+]
+
+[[package]]
+name = "pin-project"
+version = "1.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2466b2336ed02bcdca6b294417127b90ec92038d1d5c4fbeac971a922e0e0924"
+dependencies = [
+ "pin-project-internal",
+]
+
+[[package]]
+name = "pin-project-internal"
+version = "1.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c96395f0a926bc13b1c17622aaddda1ecb55d49c8f1bf9777e4d877800a43f8b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -866,6 +975,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e"
 
 [[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -944,6 +1059,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
+name = "wasi"
+version = "0.11.1+wasi-snapshot-preview1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
+
+[[package]]
 name = "wasm-bindgen"
 version = "0.2.129"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1004,6 +1125,16 @@ name = "web-sys"
 version = "0.3.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88261b9deccee56594c11a3460c462c41f58d148598fe70ad77070126a68aba4"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "web-time"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
@@ -1148,4 +1279,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3949bd5b99cafdf1c7ca86b43ca564028dfe27d66958f2470940f73d86d75b37"
 dependencies = [
  "windows-link",
+]
+
+[[package]]
+name = "yamux"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f4e661d6ba6f09a768e31c6f3d88f9fac596ad5d376515d598a37b62d220b34"
+dependencies = [
+ "futures",
+ "log",
+ "nohash-hasher",
+ "parking_lot",
+ "pin-project",
+ "static_assertions",
+ "web-time",
 ]
