@@ -1,12 +1,14 @@
-// pub mod client;
+pub mod client;
 // pub mod server;
-pub mod mux;
-pub mod handshake;
 pub mod frame;
+pub mod handshake;
+pub mod mux;
 
-use crate::{Result, endpoint::mux::Endpoint};
+use crate::{Result, protocol::SystemInfo};
 use nio::net::{TcpListener, TcpStream};
 use std::net::{Ipv4Addr, ToSocketAddrs};
+
+type Endpoint = mux::Endpoint<TcpStream>;
 
 pub struct Listener {
     tcp: TcpListener,
@@ -26,70 +28,14 @@ impl Listener {
         })
     }
 
-    pub async fn accept(&mut self) -> Result<Endpoint<TcpStream>> {
-        // SystemInfo
+    pub async fn accept(&mut self) -> Result<(Endpoint, SystemInfo)> {
         let conn = self.tcp.accept().await?;
-        let tcp_stream = conn.connect().await?;
+        let mut stream = conn.connect().await?;
 
-        // let mut conn = Conn::new(stream, addr)?;
-        // let info = conn.read_hello()?;
-        // Ok((info, server::Endpoint { conn }))
-        Ok(Endpoint::server(tcp_stream))
+        let hello = handshake::read_hello(&mut stream).await?;
+        Ok((Endpoint::server(stream), hello.info))
     }
 }
-
-// pub struct Conn {
-//     local_addr: SocketAddr,
-//     peer_addr: SocketAddr,
-//     reader: BufReader<TcpStream>,
-//     writer: BufWriter<TcpStream>,
-
-//     len_buf: [u8; 4],
-// }
-
-// impl Conn {
-//     fn new(stream: TcpStream, peer_addr: SocketAddr) -> io::Result<Self> {
-//         let local_addr = stream.local_addr()?;
-
-//         let reader = BufReader::new(stream.try_clone()?);
-//         let writer = BufWriter::new(stream);
-
-//         Ok(Conn {
-//             local_addr,
-//             peer_addr,
-//             reader,
-//             writer,
-//             len_buf: [0; 4],
-//         })
-//     }
-
-//     pub fn open(addr: impl ToSocketAddrs) -> Result<(SystemInfo, Self)> {
-//         let stream = TcpStream::connect(addr)?;
-//         let addr = stream.peer_addr()?;
-
-//         let mut conn = Conn::new(stream, addr)?;
-//         conn.send(Hello::message())?;
-//         let info = conn.read_hello()?;
-
-//         Ok((info, conn))
-//     }
-
-//     pub fn read(&mut self) -> Result<Message> {
-//         let buf = self.read_frame()?;
-//         Message::decode(&mut buf.as_ref())
-//     }
-
-//     pub fn send(&mut self, msg: impl Into<Message>) -> Result<()> {
-//         self.send_frame(&msg.into().to_bytes()?)
-//     }
-
-//     pub fn next_req(&mut self) -> Result<FileInfo> {
-//         match self.read()? {
-//             Message::Write(info) => Ok(info),
-//             msg => Err(format!("expected File Info; found: {msg}").into()),
-//         }
-//     }
-// }
 
 // impl Conn {
 //     fn create_udp_socket(&mut self) -> io::Result<UdpSocket> {

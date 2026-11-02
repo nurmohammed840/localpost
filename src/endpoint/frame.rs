@@ -68,11 +68,7 @@ where
         Ok(())
     }
 
-    pub async fn encode<T>(&mut self, data: T) -> Result<()>
-    where
-        T: Encode,
-    {
-        let bytes = data.to_bytes()?;
-        self.write_frame(&bytes).await
+    pub async fn encode<T: Encode>(&mut self, data: T) -> Result<()> {
+        self.write_frame(&data.to_bytes()?).await
     }
 }
