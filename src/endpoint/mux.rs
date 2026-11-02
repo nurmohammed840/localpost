@@ -1,6 +1,6 @@
 use std::future::poll_fn;
 
-use futures_io::{AsyncRead, AsyncWrite};
+use futures::io::{AsyncRead, AsyncWrite};
 use yamux::{Config, Mode, Result, Stream};
 
 pub struct Endpoint<S> {
@@ -33,5 +33,9 @@ where
         poll_fn(|cx| self.tcp_stream.poll_next_inbound(cx))
             .await
             .transpose()
+    }
+
+    pub async fn close(&mut self) -> Result<()> {
+        poll_fn(|cx| self.tcp_stream.poll_close(cx)).await
     }
 }

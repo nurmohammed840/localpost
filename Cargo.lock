@@ -560,7 +560,7 @@ name = "localpost"
 version = "0.1.0"
 dependencies = [
  "fastrand",
- "futures-io",
+ "futures",
  "lipi",
  "local-ip-address",
  "nio",
