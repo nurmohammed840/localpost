@@ -6,7 +6,10 @@ pub mod server;
 
 use crate::{Result, protocol::SystemInfo};
 use nio::net::{TcpListener, TcpStream};
-use std::{net::{Ipv4Addr, SocketAddr, ToSocketAddrs, UdpSocket}, time::Duration};
+use std::{
+    net::{Ipv4Addr, SocketAddr, ToSocketAddrs, UdpSocket},
+    time::Duration,
+};
 
 type Endpoint = mux::Endpoint<TcpStream>;
 
@@ -42,30 +45,3 @@ pub fn create_udp_socket(local_addr: SocketAddr) -> Result<UdpSocket> {
     socket.set_read_timeout(Some(Duration::from_secs(7)))?;
     Ok(socket)
 }
-
-// impl Conn {
-//     pub fn send_file_to_server(&mut self, path: impl AsRef<Path>, frame_size: u16) -> Result<()> {
-//         let (reader, mut file_info) = FileReader::open(path, frame_size - 4)?;
-//         let file_id = file_info.tid.file_id;
-
-//         let socket = self.create_udp_socket()?;
-//         file_info.tid.udp_port = socket.local_addr()?.port();
-//         self.send(file_info)?;
-
-//         let tid = match self.read()? {
-//             Message::TransferID(tid) => tid,
-//             msg => return Err(format!("expected TID; found: {msg}").into()),
-//         };
-
-//         assert_eq!(tid.file_id, file_id);
-//         socket.connect((self.peer_addr.ip(), tid.udp_port))?;
-
-//         thread::spawn(move || -> Result<()> {
-//             let mut sender = FileSender::new(reader, socket);
-//             sender.init_send()?;
-//             Ok(())
-//         });
-
-//         Ok(())
-//     }
-// }

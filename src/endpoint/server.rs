@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     Result,
-    endpoint::frame::{FrameDecoder, FrameEncoder},
+    endpoint::mux::Stream,
     file::FileWriter,
     protocol::{ErrorFrame, FileInfo, TransferID},
     receiver::{FileReceiver, RecvStatus},
@@ -21,7 +21,7 @@ async fn receive_file(
     acceptor: FileAcceptor,
     peer_addr: SocketAddr,
     local_addr: SocketAddr,
-    stream: mux::Stream,
+    mut stream: Stream,
 ) -> Result<()> {
     let FileAcceptor {
         file,
@@ -36,11 +36,10 @@ async fn receive_file(
 
     let response = TransferID {
         udp_port: receiver_socket.local_addr()?.port(),
-        file_id: file_info.tid.file_id,
     };
 
     receiver_socket.connect(sender_socket_addr)?;
-    FrameEncoder::new(stream).encode(response).await?;
+    stream.send(response).await?;
 
     let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
     thread::spawn(move || {
@@ -81,7 +80,7 @@ pub async fn run<C: Connection>(port: u16, interface: Rc<C>) -> Result<()> {
                 let interface = _interface.clone();
 
                 let accept_req = async move || -> Result<()> {
-                    let file_info: FileInfo = FrameDecoder::new(&mut stream).decode().await?;
+                    let file_info: FileInfo = stream.recv().await?;
 
                     if let Some(_acceptor) = interface.file_request(id, &file_info).await? {
                         receive_file(file_info, _acceptor, peer_addr, local_addr, stream).await?;

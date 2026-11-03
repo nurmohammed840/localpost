@@ -6,17 +6,11 @@ use std::{env::consts as SYS, error::Error, fmt, ops::RangeBounds};
 pub struct TransferID {
     #[key = 0]
     pub udp_port: u16,
-
-    #[key = 1]
-    pub file_id: u64,
 }
 
 impl Default for TransferID {
     fn default() -> Self {
-        Self {
-            udp_port: 0,
-            file_id: fastrand::u64(..),
-        }
+        Self { udp_port: 0 }
     }
 }
 

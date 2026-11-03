@@ -28,6 +28,15 @@ impl FileReader<File> {
             .to_vec();
 
         let file = File::options().read(true).open(path)?;
+        Self::from(file, name, frame_size, capacity)
+    }
+
+    pub fn from(
+        file: File,
+        name: Vec<u8>,
+        frame_size: u16,
+        capacity: usize,
+    ) -> Result<(Self, FileInfo)> {
         let metadata = file.metadata()?;
         let size = metadata.len();
 
