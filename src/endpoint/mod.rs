@@ -1,5 +1,5 @@
 pub mod client;
-// pub mod server;
+pub mod server;
 pub mod frame;
 pub mod handshake;
 pub mod mux;
@@ -28,12 +28,12 @@ impl Listener {
         })
     }
 
-    pub async fn accept(&mut self) -> Result<(Endpoint, SystemInfo)> {
+    pub async fn accept(&mut self) -> Result<(TcpStream, SystemInfo)> {
         let conn = self.tcp.accept().await?;
         let mut stream = conn.connect().await?;
 
         let hello = handshake::read_hello(&mut stream).await?;
-        Ok((Endpoint::server(stream), hello.info))
+        Ok((stream, hello.info))
     }
 }
 

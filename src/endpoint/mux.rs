@@ -39,3 +39,18 @@ where
         poll_fn(|cx| self.tcp_stream.poll_close(cx)).await
     }
 }
+
+impl<S> std::ops::Deref for Endpoint<S> {
+    type Target = yamux::Connection<S>;
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.tcp_stream
+    }
+}
+
+impl<S> std::ops::DerefMut for Endpoint<S> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.tcp_stream
+    }
+}
