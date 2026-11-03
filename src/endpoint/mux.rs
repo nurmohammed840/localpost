@@ -1,10 +1,10 @@
-use std::future::poll_fn;
+use std::{cell::RefCell, future::poll_fn, rc::Rc};
 
 use futures::io::{AsyncRead, AsyncWrite};
-use yamux::{Config, Mode, Result, Stream};
+use yamux::{Config, Connection, Mode, Result, Stream};
 
 pub struct Endpoint<S> {
-    tcp_stream: yamux::Connection<S>,
+    tcp_stream: Rc<RefCell<Connection<S>>>,
 }
 
 impl<S> Endpoint<S>
@@ -13,7 +13,11 @@ where
 {
     fn new(tcp_stream: S, mode: Mode) -> Self {
         Self {
-            tcp_stream: yamux::Connection::new(tcp_stream, Config::default(), mode),
+            tcp_stream: Rc::new(RefCell::new(Connection::new(
+                tcp_stream,
+                Config::default(),
+                mode,
+            ))),
         }
     }
 
@@ -26,31 +30,24 @@ where
     }
 
     pub async fn create_stream(&mut self) -> Result<Stream> {
-        poll_fn(|cx| self.tcp_stream.poll_new_outbound(cx)).await
+        poll_fn(|cx| self.tcp_stream.borrow_mut().poll_new_outbound(cx)).await
     }
 
     pub async fn accept_stream(&mut self) -> Result<Option<Stream>> {
-        poll_fn(|cx| self.tcp_stream.poll_next_inbound(cx))
+        poll_fn(|cx| self.tcp_stream.borrow_mut().poll_next_inbound(cx))
             .await
             .transpose()
     }
 
     pub async fn close(&mut self) -> Result<()> {
-        poll_fn(|cx| self.tcp_stream.poll_close(cx)).await
+        poll_fn(|cx| self.tcp_stream.borrow_mut().poll_close(cx)).await
     }
 }
 
-impl<S> std::ops::Deref for Endpoint<S> {
-    type Target = yamux::Connection<S>;
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.tcp_stream
-    }
-}
-
-impl<S> std::ops::DerefMut for Endpoint<S> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.tcp_stream
+impl<S> Clone for Endpoint<S> {
+    fn clone(&self) -> Self {
+        Self {
+            tcp_stream: self.tcp_stream.clone(),
+        }
     }
 }
