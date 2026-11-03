@@ -2,15 +2,6 @@ use crate::Result;
 use lipi::{Decode, Encode};
 use std::{env::consts as SYS, error::Error, fmt, ops::RangeBounds};
 
-#[repr(u8)]
-#[derive(Encode, Decode, Debug)]
-pub enum Message {
-    Handshake(Hello) = 0,
-
-    Write(FileInfo) = 1,
-    TransferID(TransferID) = 2,
-}
-
 #[derive(Debug, Encode, Decode, Clone, Copy)]
 pub struct TransferID {
     #[key = 0]
@@ -293,32 +284,6 @@ fn format_protocol_version(num: u8) -> String {
     let major = num / 10;
     let minor = num % 10;
     format!("{}.{}", major, minor)
-}
-
-macro_rules! impl_from {
-    [$($ty:ty => $variant:ident),*] => [$(
-        impl From<$ty> for Message {
-            fn from(value: $ty) -> Self {
-                Self::$variant(value)
-            }
-        }
-    )*];
-}
-
-impl_from! {
-    Hello => Handshake,
-    FileInfo => Write,
-    TransferID => TransferID
-}
-
-impl fmt::Display for Message {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Message::Handshake(_) => "Handshake",
-            Message::Write(_) => "Write Request",
-            Message::TransferID(_) => "Transfer ID",
-        })
-    }
 }
 
 #[cfg(test)]

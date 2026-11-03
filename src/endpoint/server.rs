@@ -8,6 +8,7 @@ use crate::{
 };
 use futures::channel::oneshot;
 use std::{
+    fs::File,
     io::{Seek, Write},
     net::SocketAddr,
     rc::Rc,
@@ -67,16 +68,17 @@ pub async fn run<C: Connection>(port: u16, interface: Rc<C>) -> Result<()> {
         let peer_addr = stream.peer_addr()?;
         let local_addr = stream.local_addr()?;
 
-        let accept_conn = async move |interface: Rc<C>,
-                                      tx: oneshot::Sender<Endpoint>|
-                    -> Result<()> {
+        let (tx, rx) = oneshot::channel::<Endpoint>();
+
+        let _interface = interface.clone();
+        let accept_conn = async move || -> Result<()> {
             handshake::send_hello(&mut stream).await?;
 
             let mut endpoint = Endpoint::server(stream);
             let _ = tx.send(endpoint.clone());
 
             while let Some(mut stream) = endpoint.accept_stream().await? {
-                let interface = interface.clone();
+                let interface = _interface.clone();
 
                 let accept_req = async move || -> Result<()> {
                     let file_info: FileInfo = FrameDecoder::new(&mut stream).decode().await?;
@@ -99,12 +101,11 @@ pub async fn run<C: Connection>(port: u16, interface: Rc<C>) -> Result<()> {
 
         let interface = interface.clone();
         nio::spawn_local(async move {
-            let (tx, rx) = oneshot::channel::<Endpoint>();
             let should_accept = interface.new_connection(id, info, rx);
             if !should_accept {
                 return;
             }
-            let result = accept_conn(interface.clone(), tx).await;
+            let result = accept_conn().await;
             interface.closed(id, result).await;
         });
 
@@ -131,7 +132,7 @@ pub struct FileAcceptor {
 }
 
 impl FileAcceptor {
-    fn _new<W, CB>(file: W, cb: CB) -> FileAcceptor
+    fn new<W, CB>(file: W, cb: CB) -> FileAcceptor
     where
         W: Write + Seek + Send + Sync + 'static,
         CB: FnOnce(Result<()>) + Send + Sync + 'static,
@@ -169,20 +170,22 @@ pub trait Connection: 'static {
     ) -> Result<Option<FileAcceptor>> {
         println!("#{conn_id} write req: {file_info:#?}");
 
-        // let file = File::options()
-        //     .truncate(false)
-        //     .create(true)
-        //     .write(true)
-        //     .open("file.txt")?;
+        let file = nio::spawn_blocking(|| {
+            File::options()
+                .truncate(false)
+                .create(true)
+                .write(true)
+                .open("file.txt")
+        })
+        .await??;
 
-        // let acceptor = FileAcceptor::new(file, |res| {
-        //     if let Err(err) = res {
-        //         eprintln!("{err}")
-        //     }
-        // });
+        let acceptor = FileAcceptor::new(file, |res| {
+            if let Err(err) = res {
+                eprintln!("{err}")
+            }
+        });
 
-        // Ok(Some(acceptor))
-        Ok(None)
+        Ok(Some(acceptor))
     }
 
     async fn closed(&self, conn_id: u32, _: Result<()>) {
