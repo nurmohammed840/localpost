@@ -1,46 +1,60 @@
+use super::*;
+use crate::{
+    Result,
+    endpoint::frame::{FrameDecoder, FrameEncoder},
+    file::FileWriter,
+    protocol::{ErrorFrame, FileInfo, TransferID},
+    receiver::{FileReceiver, RecvStatus},
+};
+use futures::channel::oneshot;
 use std::{
     io::{Seek, Write},
+    net::SocketAddr,
     rc::Rc,
     sync::Arc,
+    thread,
 };
 
-use super::*;
-use crate::{Result, endpoint::frame::FrameDecoder, protocol::FileInfo, receiver::RecvStatus};
+async fn receive_file(
+    file_info: FileInfo,
+    acceptor: FileAcceptor,
+    peer_addr: SocketAddr,
+    local_addr: SocketAddr,
+    stream: mux::Stream,
+) -> Result<()> {
+    let FileAcceptor {
+        file,
+        status,
+        callback,
+    } = acceptor;
 
-// fn receive_file(&mut self, file_info: FileInfo, acceptor: FileAcceptor) -> Result<()> {
-//     let FileAcceptor {
-//         file,
-//         status,
-//         callback,
-//     } = acceptor;
+    let writer = FileWriter::new(file, file_info.frame_size - 4);
 
-//     let writer = FileWriter::new(file, file_info.frame_size - 4);
+    let sender_socket_addr = (peer_addr.ip(), file_info.tid.udp_port);
+    let receiver_socket = create_udp_socket(local_addr)?;
 
-//     let sender_socket_addr = (self.conn.peer_addr.ip(), file_info.tid.udp_port);
-//     let receiver_socket = self.conn.create_udp_socket()?;
+    let response = TransferID {
+        udp_port: receiver_socket.local_addr()?.port(),
+        file_id: file_info.tid.file_id,
+    };
 
-//     receiver_socket.connect(sender_socket_addr)?;
+    receiver_socket.connect(sender_socket_addr)?;
+    FrameEncoder::new(stream).encode(response).await?;
 
-//     self.conn.send(TransferID {
-//         udp_port: receiver_socket.local_addr()?.port(),
-//         file_id: file_info.tid.file_id,
-//     })?;
+    let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
+    thread::spawn(move || {
+        let result = receiver.init_receive(status);
 
-//     let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
+        if let Err(err) = &result
+            && !err.is::<ErrorFrame>()
+        {
+            let _ = receiver.send_error(err.to_string());
+        }
 
-//     thread::spawn(move || {
-//         let result = receiver.init_receive(status);
-
-//         if let Err(err) = &result
-//             && !err.is::<ErrorFrame>()
-//         {
-//             let _ = receiver.send_error(err.to_string());
-//         }
-
-//         callback(result);
-//     });
-//     Ok(())
-// }
+        callback(result)
+    });
+    Ok(())
+}
 
 pub async fn run<C: Connection>(port: u16, interface: Rc<C>) -> Result<()> {
     let mut listener = Listener::new(port).await?;
@@ -50,31 +64,47 @@ pub async fn run<C: Connection>(port: u16, interface: Rc<C>) -> Result<()> {
         id += 1;
 
         let (mut stream, info) = listener.accept().await?;
+        let peer_addr = stream.peer_addr()?;
+        let local_addr = stream.local_addr()?;
 
-        let accept_conn = async move |interface: Rc<C>| -> Result<()> {
+        let accept_conn = async move |interface: Rc<C>,
+                                      tx: oneshot::Sender<Endpoint>|
+                    -> Result<()> {
             handshake::send_hello(&mut stream).await?;
+
             let mut endpoint = Endpoint::server(stream);
+            let _ = tx.send(endpoint.clone());
 
-            while let Some(stream) = endpoint.accept_stream().await? {
-                let mut decoder = FrameDecoder::new(stream);
-                let file_info: FileInfo = decoder.decode().await?;
+            while let Some(mut stream) = endpoint.accept_stream().await? {
+                let interface = interface.clone();
 
-                if let Some(_acceptor) = interface.file_request(id, &file_info).await? {
-                    // _acceptor
-                }
+                let accept_req = async move || -> Result<()> {
+                    let file_info: FileInfo = FrameDecoder::new(&mut stream).decode().await?;
+
+                    if let Some(_acceptor) = interface.file_request(id, &file_info).await? {
+                        receive_file(file_info, _acceptor, peer_addr, local_addr, stream).await?;
+                    }
+                    Ok(())
+                };
+
+                nio::spawn_local(async {
+                    if let Err(err) = accept_req().await {
+                        eprintln!("{err:?}");
+                    }
+                });
             }
 
             Ok(())
         };
 
         let interface = interface.clone();
-
         nio::spawn_local(async move {
-            let should_accept = interface.new_connection(id, info).await;
+            let (tx, rx) = oneshot::channel::<Endpoint>();
+            let should_accept = interface.new_connection(id, info, rx);
             if !should_accept {
                 return;
             }
-            let result = accept_conn(interface.clone()).await;
+            let result = accept_conn(interface.clone(), tx).await;
             interface.closed(id, result).await;
         });
 
@@ -95,9 +125,9 @@ pub type FileObj = Box<dyn WriteSeek>;
 pub type OnCompleteCallback = Box<dyn FnOnce(Result<()>) + Send + Sync>;
 
 pub struct FileAcceptor {
-    _file: FileObj,
+    file: FileObj,
     status: Arc<RecvStatus>,
-    _callback: OnCompleteCallback,
+    callback: OnCompleteCallback,
 }
 
 impl FileAcceptor {
@@ -107,8 +137,8 @@ impl FileAcceptor {
         CB: FnOnce(Result<()>) + Send + Sync + 'static,
     {
         Self {
-            _file: Box::new(file),
-            _callback: Box::new(cb),
+            file: Box::new(file),
+            callback: Box::new(cb),
             status: RecvStatus::new(),
         }
     }
@@ -121,18 +151,23 @@ impl FileAcceptor {
 #[allow(async_fn_in_trait)]
 pub trait Connection: 'static {
     // return `true` to accept connection
-    async fn new_connection(&self, _conn_id: u32, info: SystemInfo) -> bool {
-        println!("New Connection: {info:#?}");
+    fn new_connection(
+        &self,
+        conn_id: u32,
+        info: SystemInfo,
+        _: oneshot::Receiver<Endpoint>,
+    ) -> bool {
+        println!("#{conn_id} New Connection; {info:#?}");
         true
     }
 
     // return `true` to accept File
     async fn file_request(
         &self,
-        _conn_id: u32,
-        _file_info: &FileInfo,
+        conn_id: u32,
+        file_info: &FileInfo,
     ) -> Result<Option<FileAcceptor>> {
-        // println!("write req: {file_info:#?}");
+        println!("#{conn_id} write req: {file_info:#?}");
 
         // let file = File::options()
         //     .truncate(false)
@@ -150,5 +185,7 @@ pub trait Connection: 'static {
         Ok(None)
     }
 
-    async fn closed(&self, _conn_id: u32, _: Result<()>);
+    async fn closed(&self, conn_id: u32, _: Result<()>) {
+        println!("#{conn_id} Conn Closed");
+    }
 }

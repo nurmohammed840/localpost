@@ -1,12 +1,12 @@
 pub mod client;
-pub mod server;
 pub mod frame;
 pub mod handshake;
 pub mod mux;
+pub mod server;
 
 use crate::{Result, protocol::SystemInfo};
 use nio::net::{TcpListener, TcpStream};
-use std::net::{Ipv4Addr, ToSocketAddrs};
+use std::{net::{Ipv4Addr, SocketAddr, ToSocketAddrs, UdpSocket}, time::Duration};
 
 type Endpoint = mux::Endpoint<TcpStream>;
 
@@ -37,13 +37,13 @@ impl Listener {
     }
 }
 
-// impl Conn {
-//     fn create_udp_socket(&mut self) -> io::Result<UdpSocket> {
-//         let socket = UdpSocket::bind((self.local_addr.ip(), 0))?;
-//         socket.set_read_timeout(Some(Duration::from_secs(7)))?;
-//         Ok(socket)
-//     }
+pub fn create_udp_socket(local_addr: SocketAddr) -> Result<UdpSocket> {
+    let socket: UdpSocket = UdpSocket::bind((local_addr.ip(), 0))?;
+    socket.set_read_timeout(Some(Duration::from_secs(7)))?;
+    Ok(socket)
+}
 
+// impl Conn {
 //     pub fn send_file_to_server(&mut self, path: impl AsRef<Path>, frame_size: u16) -> Result<()> {
 //         let (reader, mut file_info) = FileReader::open(path, frame_size - 4)?;
 //         let file_id = file_info.tid.file_id;

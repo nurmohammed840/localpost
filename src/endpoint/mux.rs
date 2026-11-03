@@ -1,7 +1,8 @@
 use std::{cell::RefCell, future::poll_fn, rc::Rc};
 
 use futures::io::{AsyncRead, AsyncWrite};
-use yamux::{Config, Connection, Mode, Result, Stream};
+use yamux::{Config, Connection, Mode, Result};
+pub use yamux::Stream;
 
 pub struct Endpoint<S> {
     tcp_stream: Rc<RefCell<Connection<S>>>,
