@@ -29,18 +29,15 @@ async fn receive_file(
         callback,
     } = acceptor;
 
-    let writer = FileWriter::new(file, file_info.frame_size - 4);
-
-    let sender_socket_addr = (peer_addr.ip(), file_info.tid.udp_port);
     let receiver_socket = create_udp_socket(local_addr)?;
-
-    let response = TransferID {
-        udp_port: receiver_socket.local_addr()?.port(),
-    };
-
+    let sender_socket_addr = (peer_addr.ip(), file_info.tid.udp_port);
     receiver_socket.connect(sender_socket_addr)?;
-    stream.send(response).await?;
 
+    stream
+        .send(TransferID::new(receiver_socket.local_addr()?.port()))
+        .await?;
+
+    let writer = FileWriter::new(file, file_info.frame_size - 4);
     let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
     thread::spawn(move || {
         let result = receiver.init_receive(status);
@@ -82,8 +79,8 @@ pub async fn run<C: Connection>(port: u16, interface: Rc<C>) -> Result<()> {
                 let accept_req = async move || -> Result<()> {
                     let file_info: FileInfo = stream.recv().await?;
 
-                    if let Some(_acceptor) = interface.file_request(id, &file_info).await? {
-                        receive_file(file_info, _acceptor, peer_addr, local_addr, stream).await?;
+                    if let Some(acceptor) = interface.file_request(id, &file_info).await? {
+                        receive_file(file_info, acceptor, peer_addr, local_addr, stream).await?;
                     }
                     Ok(())
                 };

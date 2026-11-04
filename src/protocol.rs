@@ -8,6 +8,12 @@ pub struct TransferID {
     pub udp_port: u16,
 }
 
+impl TransferID {
+    pub fn new(udp_port: u16) -> Self {
+        Self { udp_port }
+    }
+}
+
 impl Default for TransferID {
     fn default() -> Self {
         Self { udp_port: 0 }

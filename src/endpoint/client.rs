@@ -1,7 +1,5 @@
 use super::*;
-use crate::{
-    Result, endpoint::mux::Stream, file::FileReader, protocol::TransferID, sender::FileSender,
-};
+use crate::{Result, file::FileReader, protocol::TransferID, sender::FileSender};
 use std::{path::PathBuf, thread};
 
 pub async fn open(addr: impl ToSocketAddrs) -> Result<(Endpoint, SystemInfo)> {
@@ -13,31 +11,32 @@ pub async fn open(addr: impl ToSocketAddrs) -> Result<(Endpoint, SystemInfo)> {
     Ok((Endpoint::client(stream), hello.info))
 }
 
-pub async fn send_file(
-    path: PathBuf,
-    frame_size: u16,
-    peer_addr: SocketAddr,
+pub struct Client {
     local_addr: SocketAddr,
-    mut stream: Stream,
-) -> Result<()> {
-    let (reader, mut file_info) =
-        nio::spawn_blocking(move || FileReader::open(path, frame_size)).await??;
+    peer_addr: SocketAddr,
+    endpoint: Endpoint,
+}
 
-    let socket = create_udp_socket(local_addr)?;
-    file_info.tid.udp_port = socket.local_addr()?.port();
+impl Client {
+    pub async fn send_file(&mut self, path: PathBuf, frame_size: u16) -> Result<()> {
+        let mut stream = self.endpoint.create_stream().await?;
+        let (reader, mut file_info) =
+            nio::spawn_blocking(move || FileReader::open(path, frame_size)).await??;
 
-    stream.send(file_info).await?;
+        let sender_socket = create_udp_socket(self.local_addr)?;
+        file_info.tid.udp_port = sender_socket.local_addr()?.port();
+        stream.send(file_info).await?;
 
-    let tid: TransferID = stream.recv().await?;
-    let receiver_socket_addr = (peer_addr.ip(), tid.udp_port);
+        let tid: TransferID = stream.recv().await?;
+        let receiver_socket_addr = (self.peer_addr.ip(), tid.udp_port);
+        sender_socket.connect(receiver_socket_addr)?;
 
-    socket.connect(receiver_socket_addr)?;
+        thread::spawn(|| -> Result<()> {
+            let mut sender = FileSender::new(reader, sender_socket);
+            sender.init_send()?;
+            Ok(())
+        });
 
-    thread::spawn(|| -> Result<()> {
-        let mut sender = FileSender::new(reader, socket);
-        sender.init_send()?;
         Ok(())
-    });
-
-    Ok(())
+    }
 }
