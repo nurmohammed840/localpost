@@ -70,7 +70,7 @@ fn test_file_transfer() -> Result<()> {
 
     let file_info = file_info(frame_size, file_size);
     let writer = FileWriter::new(MockFile::default(), frame_size);
-    let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
+    let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info);
 
     let status = RecvStatus::new();
     receiver.flush_threshold = 8 * 1024;

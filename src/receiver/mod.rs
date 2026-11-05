@@ -32,14 +32,14 @@ where
     T: Write + Seek,
     S: DatagramSocket,
 {
-    pub fn new(writer: FileWriter<T>, socket: S, file_info: &FileInfo) -> Result<Self> {
-        Ok(Self {
+    pub fn new(writer: FileWriter<T>, socket: S, file_info: &FileInfo) -> Self {
+        Self {
             writer,
             socket,
             bitset: FileBitSet::new(file_info.num_of_frames()),
             frame_size: file_info.frame_size,
             flush_threshold: 32 * 1024 * 1024,
-        })
+        }
     }
 
     pub fn recv_packets(&mut self) -> Result<Vec<Box<[u8]>>> {

@@ -26,7 +26,7 @@ impl Default for TransferID {
     }
 }
 
-#[derive(Debug, Encode, Decode)]
+#[derive(Debug, Encode, Decode, Clone)]
 pub struct FileInfo {
     #[key = 0]
     pub tid: TransferID,

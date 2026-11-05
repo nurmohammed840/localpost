@@ -1,30 +1,83 @@
 use super::*;
 use crate::{
     Result,
-    endpoint::mux::Stream,
     file::{FileReader, FileWriter},
     protocol::{ErrorFrame, FileInfo, TransferID},
     receiver::{FileReceiver, RecvStatus},
     sender::FileSender,
 };
-use futures::channel::oneshot;
+
 use lipi::Decode;
+use nio::net::TcpListener;
 use std::{
     fs::File,
     io::{Seek, Write},
-    net::SocketAddr,
+    net::Ipv4Addr,
     path::PathBuf,
-    rc::Rc,
     sync::Arc,
-    thread,
 };
 
-pub struct Server {
-    local_addr: SocketAddr,
-    endpoint: Endpoint,
+pub struct Listener {
+    tcp: TcpListener,
 }
 
-impl Server {
+impl Listener {
+    pub async fn new(port: u16) -> Result<Self> {
+        match local_ip_address::local_ip() {
+            Ok(local_ip) => Self::listen((local_ip, port)).await,
+            Err(_) => Self::listen((Ipv4Addr::UNSPECIFIED, port)).await,
+        }
+    }
+
+    pub async fn listen(addr: impl ToSocketAddrs) -> Result<Self> {
+        Ok(Listener {
+            tcp: TcpListener::bind(addr).await?,
+        })
+    }
+
+    pub async fn accept(&mut self) -> Result<(Connection, SystemInfo)> {
+        let conn = self.tcp.accept().await?;
+        let mut stream = conn.connect().await?;
+
+        let hello = handshake::read_hello(&mut stream).await?;
+        Ok((Connection { stream }, hello.info))
+    }
+}
+pub struct Connection {
+    stream: TcpStream,
+}
+
+impl Connection {
+    async fn handshake(mut self) -> Result<ServerEndpoint> {
+        handshake::send_hello(&mut self.stream).await?;
+        Ok(ServerEndpoint {
+            peer_addr: self.stream.peer_addr()?,
+            local_addr: self.stream.local_addr()?,
+            endpoint: Endpoint::server(self.stream),
+        })
+    }
+}
+
+pub struct ServerEndpoint {
+    endpoint: Endpoint,
+    local_addr: SocketAddr,
+    peer_addr: SocketAddr,
+}
+
+impl ServerEndpoint {
+    pub async fn accept_request(&mut self) -> Result<Option<FileRequest>> {
+        Ok(self
+            .endpoint
+            .accept_stream()
+            .await?
+            .map(|stream| FileRequest {
+                stream,
+                info: None,
+                local_addr: self.local_addr,
+                peer_addr: self.peer_addr,
+            }))
+    }
+
     pub async fn send_file(&mut self, path: PathBuf, frame_size: u16) -> Result<()> {
         let random_id = fastrand::u32(..);
         let mut stream = self.endpoint.create_stream().await?;
@@ -36,7 +89,7 @@ impl Server {
         file_info.tid.udp_port = sender_socket.local_addr()?.port();
         file_info.tid.id = Some(random_id);
 
-        let wait_for_signal = move |socket: &UdpSocket| -> Result<bool> {
+        let wait_for_signal = move |socket: &UdpSocket| -> Result<()> {
             let mut buf = vec![0; 16];
             for _ in 0..7 {
                 let (len, addr) = socket.recv_from(&mut buf)?;
@@ -49,17 +102,15 @@ impl Server {
 
                 if is_tid_matched {
                     socket.connect(addr)?;
-                    return Ok(true);
+                    return Ok(());
                 }
             }
-            Ok(false)
+
+            Err("Unable to connect".into())
         };
 
         nio::spawn_blocking(move || -> Result<()> {
-            let is_connected = wait_for_signal(&sender_socket)?;
-            if !is_connected {
-                return Err("Unable to connect".into());
-            }
+            wait_for_signal(&sender_socket)?;
 
             let mut sender = FileSender::new(reader, sender_socket);
             sender.init_send()?;
@@ -72,175 +123,92 @@ impl Server {
     }
 }
 
-async fn receive_file(
-    file_info: FileInfo,
-    acceptor: FileAcceptor,
-    peer_addr: SocketAddr,
+pub struct FileRequest {
+    info: Option<FileInfo>,
+    stream: mux::Stream,
     local_addr: SocketAddr,
-    mut stream: Stream,
-) -> Result<()> {
-    let FileAcceptor {
-        file,
-        status,
-        callback,
-    } = acceptor;
-
-    let receiver_socket = create_udp_socket(local_addr)?;
-    let sender_socket_addr = (peer_addr.ip(), file_info.tid.udp_port);
-    receiver_socket.connect(sender_socket_addr)?;
-
-    let tid = TransferID::new(receiver_socket.local_addr()?.port());
-
-    let writer = FileWriter::new(file, file_info.frame_size - 4);
-    let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
-    thread::spawn(move || {
-        let result = receiver.init_receive(status);
-
-        if let Err(err) = &result
-            && !err.is::<ErrorFrame>()
-        {
-            let _ = receiver.send_error(err.to_string());
-        }
-
-        callback(result)
-    });
-
-    stream.send(tid).await?;
-    Ok(())
+    peer_addr: SocketAddr,
 }
 
-pub async fn run<C: Connection>(port: u16, interface: Rc<C>) -> Result<()> {
-    let mut listener = Listener::new(port).await?;
-    let mut id = 0;
+impl FileRequest {
+    pub async fn file_info(&mut self) -> Result<&FileInfo> {
+        if let Some(file_info) = &self.info {
+            return Ok(file_info);
+        }
+        let file_info = self.stream.recv().await?;
+        Ok(self.info.insert(file_info))
+    }
 
-    let mut connection_handler = async || -> Result<()> {
-        id += 1;
+    pub async fn receive(
+        mut self,
+        file: impl Write + Seek + Send + 'static,
+        status: Arc<RecvStatus>,
+    ) -> Result<()> {
+        let file_info = self.file_info().await?.clone();
+        let receiver_socket = create_udp_socket(self.local_addr)?;
+        let sender_socket_addr = (self.peer_addr.ip(), file_info.tid.udp_port);
 
-        let (mut stream, info) = listener.accept().await?;
-        let peer_addr = stream.peer_addr()?;
-        let local_addr = stream.local_addr()?;
+        receiver_socket.connect(sender_socket_addr)?;
 
-        let (tx, rx) = oneshot::channel::<Endpoint>();
+        let tid = TransferID::new(receiver_socket.local_addr()?.port());
 
-        let _interface = interface.clone();
-        let accept_conn = async move || -> Result<()> {
-            handshake::send_hello(&mut stream).await?;
+        let writer = FileWriter::new(file, file_info.frame_size - 4);
+        let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info);
 
-            let mut endpoint = Endpoint::server(stream);
-            let _ = tx.send(endpoint.clone());
+        let task = nio::spawn_blocking(move || -> Result<()> {
+            let result = receiver.init_receive(status);
 
-            while let Some(mut stream) = endpoint.accept_stream().await? {
-                let interface = _interface.clone();
+            if let Err(err) = &result
+                && !err.is::<ErrorFrame>()
+            {
+                receiver.send_error(err.to_string())?;
+            }
 
-                let accept_req = async move || -> Result<()> {
-                    let file_info: FileInfo = stream.recv().await?;
+            result
+        });
 
-                    if let Some(acceptor) = interface.file_request(id, &file_info).await? {
-                        receive_file(file_info, acceptor, peer_addr, local_addr, stream).await?;
-                    }
-                    Ok(())
-                };
+        self.stream.send(tid).await?;
+        task.await??;
+        Ok(())
+    }
+}
 
-                nio::spawn_local(async {
-                    if let Err(err) = accept_req().await {
-                        eprintln!("{err:?}");
-                    }
+pub async fn run_server() -> Result<()> {
+    let mut listener = Listener::new(50001).await?;
+
+    loop {
+        let (conn, info) = match listener.accept().await {
+            Ok(conn) => conn,
+            Err(_) => continue,
+        };
+
+        nio::spawn_local(async move {
+            let mut endpoint = conn.handshake().await.unwrap();
+
+            while let Some(mut request) = endpoint.accept_request().await.unwrap() {
+                nio::spawn_local(async move {
+                    let info = request.file_info().await.unwrap().clone();
+                    println!("File Request: {info:?}");
+
+                    let file = nio::spawn_blocking(|| {
+                        File::options()
+                            .truncate(false)
+                            .create(true)
+                            .write(true)
+                            .open("file.txt")
+                    })
+                    .await
+                    .unwrap()
+                    .unwrap();
+
+                    let status = RecvStatus::new();
+
+                    request.receive(file, status).await.unwrap();
+                    println!("File Download Complete: {info:?}")
                 });
             }
 
-            Ok(())
-        };
-
-        let interface = interface.clone();
-        nio::spawn_local(async move {
-            let should_accept = interface.new_connection(id, info, rx);
-            if !should_accept {
-                return;
-            }
-            let result = accept_conn().await;
-            interface.closed(id, result).await;
+            println!("Connection Closed: {}", info.hostname);
         });
-
-        Ok(())
-    };
-
-    loop {
-        if let Err(err) = connection_handler().await {
-            eprintln!("{err}")
-        }
-    }
-}
-
-pub trait WriteSeek: Write + Seek + Send + Sync {}
-impl<T: Write + Seek + ?Sized + Send + Sync> WriteSeek for T {}
-pub type FileObj = Box<dyn WriteSeek>;
-
-pub type OnCompleteCallback = Box<dyn FnOnce(Result<()>) + Send + Sync>;
-
-pub struct FileAcceptor {
-    file: FileObj,
-    status: Arc<RecvStatus>,
-    callback: OnCompleteCallback,
-}
-
-impl FileAcceptor {
-    fn new<W, CB>(file: W, cb: CB) -> FileAcceptor
-    where
-        W: Write + Seek + Send + Sync + 'static,
-        CB: FnOnce(Result<()>) + Send + Sync + 'static,
-    {
-        Self {
-            file: Box::new(file),
-            callback: Box::new(cb),
-            status: RecvStatus::new(),
-        }
-    }
-
-    pub fn status(&self) -> Arc<RecvStatus> {
-        self.status.clone()
-    }
-}
-
-#[allow(async_fn_in_trait)]
-pub trait Connection: 'static {
-    // return `true` to accept connection
-    fn new_connection(
-        &self,
-        conn_id: u32,
-        info: SystemInfo,
-        _: oneshot::Receiver<Endpoint>,
-    ) -> bool {
-        println!("#{conn_id} New Connection; {info:#?}");
-        true
-    }
-
-    // return `true` to accept File
-    async fn file_request(
-        &self,
-        conn_id: u32,
-        file_info: &FileInfo,
-    ) -> Result<Option<FileAcceptor>> {
-        println!("#{conn_id} write req: {file_info:#?}");
-
-        let file = nio::spawn_blocking(|| {
-            File::options()
-                .truncate(false)
-                .create(true)
-                .write(true)
-                .open("file.txt")
-        })
-        .await??;
-
-        let acceptor = FileAcceptor::new(file, |res| {
-            if let Err(err) = res {
-                eprintln!("{err}")
-            }
-        });
-
-        Ok(Some(acceptor))
-    }
-
-    async fn closed(&self, conn_id: u32, _: Result<()>) {
-        println!("#{conn_id} Conn Closed");
     }
 }
