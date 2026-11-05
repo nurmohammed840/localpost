@@ -6,17 +6,23 @@ use std::{env::consts as SYS, error::Error, fmt, ops::RangeBounds};
 pub struct TransferID {
     #[key = 0]
     pub udp_port: u16,
+
+    #[key = 1]
+    pub id: Option<u32>,
 }
 
 impl TransferID {
     pub fn new(udp_port: u16) -> Self {
-        Self { udp_port }
+        Self { udp_port, id: None }
     }
 }
 
 impl Default for TransferID {
     fn default() -> Self {
-        Self { udp_port: 0 }
+        Self {
+            udp_port: 0,
+            id: None,
+        }
     }
 }
 

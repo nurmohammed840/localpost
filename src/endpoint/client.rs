@@ -1,6 +1,6 @@
 use super::*;
 use crate::{Result, file::FileReader, protocol::TransferID, sender::FileSender};
-use std::{path::PathBuf, thread};
+use std::path::PathBuf;
 
 pub async fn open(addr: impl ToSocketAddrs) -> Result<(Endpoint, SystemInfo)> {
     let mut stream = TcpStream::connect(addr).await?;
@@ -31,7 +31,7 @@ impl Client {
         let receiver_socket_addr = (self.peer_addr.ip(), tid.udp_port);
         sender_socket.connect(receiver_socket_addr)?;
 
-        thread::spawn(|| -> Result<()> {
+        nio::spawn_blocking(|| -> Result<()> {
             let mut sender = FileSender::new(reader, sender_socket);
             sender.init_send()?;
             Ok(())

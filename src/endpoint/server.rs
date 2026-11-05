@@ -2,19 +2,75 @@ use super::*;
 use crate::{
     Result,
     endpoint::mux::Stream,
-    file::FileWriter,
+    file::{FileReader, FileWriter},
     protocol::{ErrorFrame, FileInfo, TransferID},
     receiver::{FileReceiver, RecvStatus},
+    sender::FileSender,
 };
 use futures::channel::oneshot;
+use lipi::Decode;
 use std::{
     fs::File,
     io::{Seek, Write},
     net::SocketAddr,
+    path::PathBuf,
     rc::Rc,
     sync::Arc,
     thread,
 };
+
+pub struct Server {
+    local_addr: SocketAddr,
+    endpoint: Endpoint,
+}
+
+impl Server {
+    pub async fn send_file(&mut self, path: PathBuf, frame_size: u16) -> Result<()> {
+        let random_id = fastrand::u32(..);
+        let mut stream = self.endpoint.create_stream().await?;
+
+        let (reader, mut file_info) =
+            nio::spawn_blocking(move || FileReader::open(path, frame_size)).await??;
+
+        let sender_socket = create_udp_socket(self.local_addr)?;
+        file_info.tid.udp_port = sender_socket.local_addr()?.port();
+        file_info.tid.id = Some(random_id);
+
+        let wait_for_signal = move |socket: &UdpSocket| -> Result<bool> {
+            let mut buf = vec![0; 16];
+            for _ in 0..7 {
+                let (len, addr) = socket.recv_from(&mut buf)?;
+
+                let is_tid_matched = TransferID::decode(&mut &buf[..len])
+                    .ok()
+                    .is_some_and(|tid| {
+                        tid.udp_port == addr.port() && tid.id.is_some_and(|id| id == random_id)
+                    });
+
+                if is_tid_matched {
+                    socket.connect(addr)?;
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        };
+
+        nio::spawn_blocking(move || -> Result<()> {
+            let is_connected = wait_for_signal(&sender_socket)?;
+            if !is_connected {
+                return Err("Unable to connect".into());
+            }
+
+            let mut sender = FileSender::new(reader, sender_socket);
+            sender.init_send()?;
+            Ok(())
+        });
+
+        stream.send(file_info).await?;
+
+        Ok(())
+    }
+}
 
 async fn receive_file(
     file_info: FileInfo,
@@ -33,9 +89,7 @@ async fn receive_file(
     let sender_socket_addr = (peer_addr.ip(), file_info.tid.udp_port);
     receiver_socket.connect(sender_socket_addr)?;
 
-    stream
-        .send(TransferID::new(receiver_socket.local_addr()?.port()))
-        .await?;
+    let tid = TransferID::new(receiver_socket.local_addr()?.port());
 
     let writer = FileWriter::new(file, file_info.frame_size - 4);
     let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info)?;
@@ -50,6 +104,8 @@ async fn receive_file(
 
         callback(result)
     });
+
+    stream.send(tid).await?;
     Ok(())
 }
 
