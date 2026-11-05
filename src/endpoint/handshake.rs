@@ -1,8 +1,8 @@
 use crate::{
-    Result,
     endpoint::frame::{FrameDecoder, FrameEncoder},
     protocol::Hello,
 };
+use anyhow::Result;
 use futures::{AsyncRead, AsyncWrite};
 
 pub async fn send_hello<S>(stream: &mut S) -> Result<()>

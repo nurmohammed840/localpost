@@ -6,14 +6,14 @@ use std::{
 
 pub use crate::receiver::status::RecvStatus;
 use crate::{
-    Result,
-    protocol::{DataFrameLike, ErrorCode, ErrorFrame, FileInfo},
-    socket::DatagramSocket,
-};
-use crate::{
     file::{FileBitSet, FileWriter},
     protocol::DataFrame,
 };
+use crate::{
+    protocol::{DataFrameLike, ErrorCode, ErrorFrame, FileInfo},
+    socket::DatagramSocket,
+};
+use anyhow::{Context, Result};
 
 pub struct FileReceiver<T, S>
 where
@@ -46,14 +46,18 @@ where
         let mut packets = Vec::new();
 
         self.socket
-            .recv_many(&mut packets, self.frame_size, u8::MAX)?;
+            .recv_many(&mut packets, self.frame_size, u8::MAX)
+            .context("receive packets")?;
 
         Ok(packets)
     }
 
     pub fn send_ack(&mut self, frame: &DataFrame) -> Result<()> {
         let cumulative = self.bitset.filled_upto();
-        self.socket.send(&frame.ack(cumulative).to_bytes())?;
+        self.socket
+            .send(&frame.ack(cumulative).to_bytes())
+            .context("send acknowledgement")?;
+
         Ok(())
     }
 

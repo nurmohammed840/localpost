@@ -66,11 +66,11 @@ impl Stream {
         Self { io }
     }
 
-    pub async fn recv<T: lipi::DecodeOwned>(&mut self) -> crate::Result<T> {
+    pub async fn recv<T: lipi::DecodeOwned>(&mut self) -> anyhow::Result<T> {
         FrameDecoder::new(&mut self.io).decode().await
     }
 
-    pub async fn send<T: lipi::Encode>(&mut self, data: T) -> crate::Result<()> {
+    pub async fn send<T: lipi::Encode>(&mut self, data: T) -> anyhow::Result<()> {
         FrameEncoder::new(&mut self.io).encode(data).await
     }
 }

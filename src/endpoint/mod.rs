@@ -3,12 +3,12 @@ pub mod handshake;
 pub mod mux;
 
 use crate::{
-    Result,
     file::{FileReader, FileWriter},
     protocol::{ErrorFrame, FileInfo, SystemInfo, TransferID},
     receiver::{FileReceiver, RecvStatus},
     sender::FileSender,
 };
+use anyhow::{Result, bail};
 use lipi::{Decode, Encode};
 use nio::net::{TcpListener, TcpStream};
 use std::{
@@ -221,7 +221,7 @@ fn wait_for_signal(socket: &UdpSocket, random_id: u32) -> Result<()> {
         }
     }
 
-    Err("Unable to connect".into())
+    bail!("Unable to connect")
 }
 
 pub async fn run_server() -> Result<()> {

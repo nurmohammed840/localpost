@@ -8,6 +8,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = { version = "1", features = ["backtrace"] }
 sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 nio = { git = "https://github.com/nurmohammed840/nio", version = "0.2.0-rc.1" }
 lipi = { git = "https://github.com/nurmohammed840/setu" }

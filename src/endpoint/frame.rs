@@ -1,6 +1,6 @@
 use std::io::IoSlice;
 
-use crate::Result;
+use anyhow::{anyhow, bail, Result};
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use lipi::{DecodeOwned, Encode};
 
@@ -28,7 +28,7 @@ where
         let len = u32::from_le_bytes(len_buf);
 
         if len > self.max_frame_size {
-            return Err(format!("frame too large: {len} bytes").into());
+            bail!("frame too large: {len} bytes");
         }
 
         let mut buf = vec![0; len as usize];
@@ -41,7 +41,7 @@ where
         T: DecodeOwned,
     {
         let frame = self.read_frame().await?;
-        T::decode(&mut frame.as_ref())
+        T::decode(&mut frame.as_ref()).map_err(|e| anyhow!("failed to decode frame: {e}"))
     }
 }
 

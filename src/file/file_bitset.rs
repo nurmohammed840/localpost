@@ -1,6 +1,5 @@
+use anyhow::{Result, bail};
 use lipi::{BitSet, BitSetMut};
-
-use crate::Result;
 
 #[derive(Debug)]
 pub struct FileBitSet {
@@ -28,7 +27,7 @@ impl FileBitSet {
 
     pub fn set(&mut self, no: u32) -> Result<bool> {
         if no >= self.cap {
-            return Err(format!("frame number {no} out of bounds (capacity: {})", self.cap).into());
+            bail!("frame number {no} out of bounds (capacity: {})", self.cap);
         }
 
         let is_already_set = BitSetMut::set(&mut self.bitmap, no as usize).unwrap();

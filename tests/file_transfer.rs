@@ -1,5 +1,5 @@
+use anyhow::Result;
 use localpost::{
-    Result,
     file::{FileReader, FileWriter},
     protocol::FileInfo,
     receiver::{FileReceiver, RecvStatus},
@@ -9,6 +9,7 @@ use std::{
     io::{self, Read, Seek, SeekFrom, Write},
     net::UdpSocket,
     thread,
+    time::Instant,
 };
 
 #[derive(Default)]
@@ -62,22 +63,27 @@ fn test_file_transfer() -> Result<()> {
     let frame_size = 1400;
     let file_size = 32 * 1024 * 1024;
 
-    thread::spawn(move || {
+    let task = thread::spawn(move || {
         let reader = FileReader::new(MockFile::default(), frame_size, file_size);
         let mut sender = FileSender::new(reader, sender_socket);
-        sender.init_send().unwrap();
+        sender.init_send()
     });
 
     let file_info = file_info(frame_size, file_size);
     let writer = FileWriter::new(MockFile::default(), frame_size);
     let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info);
 
+    let time = Instant::now();
+
     let status = RecvStatus::new();
     receiver.flush_threshold = 8 * 1024;
     receiver.init_receive(status.clone())?;
 
+    println!("time.elapsed(): {:#?}", time.elapsed());
+
     assert_eq!(status.recv_count(), file_info.num_of_frames());
 
+    task.join().unwrap()?;
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-use crate::Result;
+use anyhow::{anyhow, bail, Result};
 use lipi::{Decode, Encode};
 use std::{env::consts as SYS, error::Error, fmt, ops::RangeBounds};
 
@@ -70,11 +70,11 @@ impl Hello {
 
     pub fn check_protocol_version(&self, target: impl RangeBounds<u8>) -> Result<()> {
         if self.protocol != "localpost" {
-            return Err(format!("Invalid protocol: {}", self.protocol).into());
+            bail!("Invalid protocol: {}", self.protocol);
         }
         if !target.contains(&self.version) {
             let version = format_protocol_version(self.version);
-            return Err(format!("Invalid protocol version: {version}").into());
+            bail!("Invalid protocol version: {version}");
         }
         Ok(())
     }
@@ -186,7 +186,7 @@ impl AckFrame {
 
     pub fn try_from(bytes: &[u8]) -> Result<Self> {
         if bytes.len() < 8 {
-            return Err("small frame".into());
+            bail!("small frame");
         }
         Ok(Self {
             current: u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
@@ -271,14 +271,16 @@ impl ErrorFrame {
 
     pub fn check(frame: impl DataFrameLike) -> Result<()> {
         if frame.as_bytes().len() < 4 {
-            return Err("small frame".into());
+            bail!("small frame");
         }
 
         if frame.no() != u32::MAX {
             return Ok(());
         }
         let mut data = frame.data();
-        let code: u8 = lipi::Decode::decode(&mut data)?;
+        let code: u8 =
+            Decode::decode(&mut data).map_err(|e| anyhow!("failed to decode frame: {e}"))?;
+
         let msg = String::from_utf8(data.to_vec())?;
         Err(Self::new(code, msg).into())
     }

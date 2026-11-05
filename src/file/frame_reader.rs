@@ -1,6 +1,6 @@
+use crate::{file::FileReader, protocol::DataFrame};
+use anyhow::Result;
 use std::io::{Read, Seek};
-
-use crate::{Result, file::FileReader, protocol::DataFrame};
 
 pub struct FrameReader<T> {
     next_frame_no: u32,

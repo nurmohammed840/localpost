@@ -7,11 +7,8 @@ use std::{
     iter,
     time::{Duration, Instant},
 };
-
-use crate::{
-    Result,
-    protocol::{AckFrame, DataFrameLike, ErrorFrame},
-};
+use anyhow::Result;
+use crate::protocol::{AckFrame, DataFrameLike, ErrorFrame};
 use crate::{
     file::{FileReader, FrameReader},
     socket::DatagramSocket,
