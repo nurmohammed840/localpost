@@ -47,7 +47,7 @@ where
 
         self.socket
             .recv_many(&mut packets, self.frame_size, u8::MAX)
-            .context("receive packets")?;
+            .context("failed to receive packets")?;
 
         Ok(packets)
     }
@@ -56,7 +56,7 @@ where
         let cumulative = self.bitset.filled_upto();
         self.socket
             .send(&frame.ack(cumulative).to_bytes())
-            .context("send acknowledgement")?;
+            .context("failed to send acknowledgement")?;
 
         Ok(())
     }
@@ -75,7 +75,7 @@ where
             status.inc_total_recv_count(frames.len() as u32);
 
             for (is_already_set, frame) in frames {
-                self.send_ack(&frame)?;
+                self.send_ack(&frame).or_else(|err| self.bitset.is_full().ok_or(err))?;
 
                 if is_already_set {
                     continue;

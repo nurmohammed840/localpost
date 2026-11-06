@@ -158,11 +158,12 @@ pub struct FileRequest {
 
 impl FileRequest {
     pub async fn file_info(&mut self) -> Result<&FileInfo> {
-        if let Some(file_info) = &self.info {
-            return Ok(file_info);
+        if self.info.is_none() {
+            let file_info = self.stream.recv().await?;
+            self.info = Some(file_info);
         }
-        let file_info = self.stream.recv().await?;
-        Ok(self.info.insert(file_info))
+
+        Ok(self.info.as_ref().unwrap())
     }
 
     pub async fn receive(
