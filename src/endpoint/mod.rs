@@ -4,7 +4,7 @@ pub mod mux;
 
 use crate::{
     file::{FileReader, FileWriter},
-    protocol::{ErrorFrame, FileInfo, SystemInfo, TransferID},
+    protocol::{FileInfo, SystemInfo, TransferID},
     receiver::{FileReceiver, RecvStatus},
     sender::FileSender,
 };
@@ -183,19 +183,9 @@ impl FileRequest {
         }
 
         let writer = FileWriter::new(file, file_info.frame_size - 4);
-        let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info);
+        let receiver = FileReceiver::new(writer, receiver_socket, &file_info);
 
-        let task = nio::spawn_blocking(move || -> Result<()> {
-            let result = receiver.init_receive(status);
-
-            if let Err(err) = &result
-                && !err.is::<ErrorFrame>()
-            {
-                receiver.send_error(err.to_string())?;
-            }
-
-            result
-        });
+        let task = nio::spawn_blocking(move || receiver.init_receive(status));
 
         if self.mode == Mode::Server {
             self.stream.send(file_info.tid).await?;

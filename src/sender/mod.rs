@@ -2,19 +2,19 @@ pub mod congestion;
 pub mod rtt_estimator;
 mod utils;
 
-use std::{
-    io::{self, ErrorKind, Read, Seek},
-    iter,
-    time::{Duration, Instant},
-};
-use anyhow::Result;
 use crate::protocol::{AckFrame, DataFrameLike, ErrorFrame};
 use crate::{
     file::{FileReader, FrameReader},
     socket::DatagramSocket,
 };
+use anyhow::Result;
 use congestion::LostList;
 use rtt_estimator::RttEstimator;
+use std::{
+    io::{self, ErrorKind, Read, Seek},
+    iter,
+    time::{Duration, Instant},
+};
 
 pub struct FileSender<T, S> {
     reader: FrameReader<T>,
@@ -88,7 +88,17 @@ where
                 return Err(io::Error::new(ErrorKind::TimedOut, msg).into());
             }
 
-            let rtts = self.recv_ack()?.map(|ack| {
+            let ack = self.recv_ack();
+
+            let is_fin_ack = ack
+                .as_ref()
+                .is_err_and(|err| err.downcast_ref().is_some_and(ErrorFrame::is_fin_ack));
+
+            if is_fin_ack {
+                return Ok(());
+            }
+
+            let rtts = ack?.map(|ack| {
                 self.last_seen = Instant::now();
                 self.outgoing
                     .mark_as_complete(ack)

@@ -1,6 +1,6 @@
 use std::io::IoSlice;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use lipi::{DecodeOwned, Encode};
 

@@ -1,8 +1,8 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use lipi::{Decode, Encode};
 use std::{env::consts as SYS, error::Error, fmt, ops::RangeBounds};
 
-#[derive(Debug, Encode, Decode, Clone, Copy)]
+#[derive(Debug, Encode, Decode, Clone, Copy, Default)]
 pub struct TransferID {
     #[key = 0]
     pub udp_port: u16,
@@ -14,15 +14,6 @@ pub struct TransferID {
 impl TransferID {
     pub fn new(udp_port: u16) -> Self {
         Self { udp_port, id: None }
-    }
-}
-
-impl Default for TransferID {
-    fn default() -> Self {
-        Self {
-            udp_port: 0,
-            id: None,
-        }
     }
 }
 
@@ -219,13 +210,17 @@ impl AckFrame {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
     Unknown(u8) = 0,
-    Other = 1,
+    Abort = 1,
+    FinAck = 2,
+    AckError = 3,
 }
 
 impl From<ErrorCode> for u8 {
     fn from(code: ErrorCode) -> Self {
         match code {
-            ErrorCode::Other => 1,
+            ErrorCode::Abort => 1,
+            ErrorCode::FinAck => 2,
+            ErrorCode::AckError => 3,
             ErrorCode::Unknown(code) => code,
         }
     }
@@ -234,7 +229,9 @@ impl From<ErrorCode> for u8 {
 impl From<u8> for ErrorCode {
     fn from(code: u8) -> Self {
         match code {
-            1 => Self::Other,
+            1 => Self::Abort,
+            2 => Self::FinAck,
+            3 => Self::AckError,
             code => Self::Unknown(code),
         }
     }
@@ -242,8 +239,14 @@ impl From<u8> for ErrorCode {
 
 #[derive(Debug)]
 pub struct ErrorFrame {
-    code: ErrorCode,
-    msg: String,
+    pub code: ErrorCode,
+    pub msg: String,
+}
+
+impl From<ErrorCode> for ErrorFrame {
+    fn from(code: ErrorCode) -> Self {
+        ErrorFrame::new(code, String::new())
+    }
 }
 
 impl Error for ErrorFrame {}
@@ -254,6 +257,10 @@ impl fmt::Display for ErrorFrame {
 }
 
 impl ErrorFrame {
+    pub fn is_fin_ack(&self) -> bool {
+        matches!(self.code, ErrorCode::FinAck)
+    }
+
     pub fn new(code: impl Into<ErrorCode>, msg: impl Into<String>) -> Self {
         Self {
             code: code.into(),

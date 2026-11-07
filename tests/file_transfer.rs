@@ -65,8 +65,7 @@ fn test_file_transfer() -> Result<()> {
 
     let task = thread::spawn(move || {
         let reader = FileReader::new(MockFile::default(), frame_size, file_size);
-        let mut sender = FileSender::new(reader, sender_socket);
-        sender.init_send()
+        FileSender::new(reader, sender_socket).init_send()
     });
 
     let file_info = file_info(frame_size, file_size);
