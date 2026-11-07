@@ -7,11 +7,11 @@ use crate::{
     file::{FileReader, FrameReader},
     socket::DatagramSocket,
 };
-use anyhow::Result;
+use anyhow::{Result, bail};
 use congestion::LostList;
 use rtt_estimator::RttEstimator;
 use std::{
-    io::{self, ErrorKind, Read, Seek},
+    io::{ErrorKind, Read, Seek},
     iter,
     time::{Duration, Instant},
 };
@@ -84,8 +84,7 @@ where
 
             let time_since_last_seen = self.last_seen.elapsed();
             if time_since_last_seen > self.conn_timeout {
-                let msg = format!("connection timed out after {time_since_last_seen:.3?}");
-                return Err(io::Error::new(ErrorKind::TimedOut, msg).into());
+                bail!("connection timed out after {time_since_last_seen:.3?}");
             }
 
             let ack = self.recv_ack();

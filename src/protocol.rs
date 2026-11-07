@@ -118,7 +118,7 @@ pub trait DataFrameLike {
 
     fn ack(&self, cumulative: u32) -> AckFrame {
         AckFrame {
-            current: self.no(),
+            current: Some(self.no()),
             cumulative,
         }
     }
@@ -161,31 +161,42 @@ impl DataFrame {
     }
 }
 
+
 #[derive(Debug, Clone, Copy)]
 pub struct AckFrame {
-    current: u32,
     cumulative: u32,
+    current: Option<u32>,
+}
+
+impl TryFrom<&[u8]> for AckFrame {
+    type Error = anyhow::Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self> {
+        let len = bytes.len();
+        if len != 4 && len != 8 {
+            bail!("invalid ack frame length: {len} (expected 4 or 8)",);
+        }
+
+        Ok(Self {
+            cumulative: u32::from_le_bytes(bytes[..4].try_into()?),
+            current: if len == 8 {
+                Some(u32::from_le_bytes(bytes[4..].try_into()?))
+            } else {
+                None
+            },
+        })
+    }
 }
 
 impl AckFrame {
-    pub fn new(no: u32, cumulative: u32) -> Self {
+    pub fn new(cumulative: u32, no: Option<u32>) -> Self {
         Self {
-            current: no,
             cumulative,
+            current: no,
         }
     }
 
-    pub fn try_from(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() < 8 {
-            bail!("small frame");
-        }
-        Ok(Self {
-            current: u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
-            cumulative: u32::from_le_bytes(bytes[4..8].try_into().unwrap()),
-        })
-    }
-
-    pub fn no(&self) -> u32 {
+    pub fn no(&self) -> Option<u32> {
         self.current
     }
 
@@ -200,8 +211,10 @@ impl AckFrame {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(8);
-        buf.extend_from_slice(&self.current.to_le_bytes());
         buf.extend_from_slice(&self.cumulative.to_le_bytes());
+        if let Some(current) = self.current {
+            buf.extend_from_slice(&current.to_le_bytes());
+        }
         buf
     }
 }

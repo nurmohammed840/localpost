@@ -85,12 +85,12 @@ impl FlowControl {
         let mut f = |p: &Payload| {
             let no = p.data.no();
 
-            let acked = no == ack.no() || no < ack.cumulative_len();
+            let acked = no == ack.no().unwrap() || no < ack.cumulative_len();
             if !acked {
                 return true; // keep
             }
 
-            if no == ack.no() {
+            if no == ack.no().unwrap() {
                 current = Some(p.send_at)
             } else if no + 1 == ack.cumulative_len() {
                 cumulative = Some(p.send_at)
@@ -189,12 +189,12 @@ impl LostList {
         let f = |p: &Payload| {
             let no = p.data.no();
 
-            let acked = no == ack.no() || no < ack.cumulative_len();
+            let acked = no == ack.no().unwrap() || no < ack.cumulative_len();
             if !acked {
                 return true; // keep
             }
 
-            if no == ack.no() {
+            if no == ack.no().unwrap() {
                 current = Some(p.send_at)
             } else if no + 1 == ack.cumulative_len() {
                 cumulative = Some(p.send_at)
@@ -241,7 +241,7 @@ mod tests {
         }
 
         fn on_ack(&mut self, no: u32) {
-            self.mark_as_complete(AckFrame::new(no, 0));
+            self.mark_as_complete(AckFrame::new(0, Some(no)));
         }
 
         fn mark_as_lost(&mut self, no: u32) {
