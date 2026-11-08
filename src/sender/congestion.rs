@@ -85,14 +85,16 @@ impl FlowControl {
         let mut f = |p: &Payload| {
             let no = p.data.no();
 
-            let acked = no == ack.no().unwrap() || no < ack.cumulative_len();
+            let is_frame_acknowledged = ack.no().is_some_and(|ack_no| ack_no == no);
+
+            let acked = is_frame_acknowledged || no < ack.cumulative_len();
             if !acked {
                 return true; // keep
             }
 
-            if no == ack.no().unwrap() {
+            if is_frame_acknowledged {
                 current = Some(p.send_at)
-            } else if no + 1 == ack.cumulative_len() {
+            } else {
                 cumulative = Some(p.send_at)
             }
 
@@ -189,14 +191,16 @@ impl LostList {
         let f = |p: &Payload| {
             let no = p.data.no();
 
-            let acked = no == ack.no().unwrap() || no < ack.cumulative_len();
+            let is_frame_acknowledged = ack.no().is_some_and(|ack_no| ack_no == no);
+
+            let acked = is_frame_acknowledged || no < ack.cumulative_len();
             if !acked {
                 return true; // keep
             }
 
-            if no == ack.no().unwrap() {
+            if is_frame_acknowledged {
                 current = Some(p.send_at)
-            } else if no + 1 == ack.cumulative_len() {
+            } else {
                 cumulative = Some(p.send_at)
             }
 

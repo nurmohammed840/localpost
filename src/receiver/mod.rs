@@ -1,5 +1,13 @@
-mod status;
 mod ack_policy;
+mod status;
+
+use crate::{
+    file::{FileBitSet, FileWriter},
+    protocol::{AckFrame, DataFrame, DataFrameLike, ErrorCode, ErrorFrame, FileInfo},
+    socket::DatagramSocket,
+};
+use ack_policy::AckPolicy;
+use anyhow::{Context, Result};
 use std::{
     io::{Seek, Write},
     sync::Arc,
@@ -7,16 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub use crate::receiver::status::RecvStatus;
-use crate::{
-    file::{FileBitSet, FileWriter},
-    protocol::DataFrame,
-};
-use crate::{
-    protocol::{DataFrameLike, ErrorCode, ErrorFrame, FileInfo},
-    socket::DatagramSocket,
-};
-use anyhow::{Context, Result};
+pub use status::RecvStatus;
 
 pub struct FileReceiver<T, S>
 where
@@ -25,6 +24,7 @@ where
     writer: FileWriter<T>,
     socket: S,
     bitset: FileBitSet,
+    ack_policy: AckPolicy,
 
     frame_size: u16,
     pub flush_threshold: usize,
@@ -39,6 +39,7 @@ where
         Self {
             writer,
             socket,
+            ack_policy: AckPolicy::default(),
             bitset: FileBitSet::new(file_info.num_of_frames()),
             frame_size: file_info.frame_size,
             flush_threshold: 32 * 1024 * 1024,
@@ -55,12 +56,26 @@ where
         Ok(packets)
     }
 
-    pub fn send_ack(&mut self, frame: &DataFrame) -> Result<()> {
-        let cumulative = self.bitset.filled_upto();
+    fn send_ack(&self, ack: AckFrame) -> Result<()> {
         self.socket
-            .send(&frame.ack(cumulative).to_bytes())
-            .context("failed to send acknowledgement")?;
+            .send(&ack.to_bytes())
+            .or_else(|err| self.bitset.is_full().ok_or(err))
+            .context("failed to send acknowledgement")
+    }
 
+    fn maybe_send_regular_ack(&mut self, frame: &DataFrame) -> Result<()> {
+        let cumulative = self.bitset.filled_upto();
+        if let Some(ack) = self.ack_policy.on_frame_received(cumulative, frame.no()) {
+            self.send_ack(ack)?;
+        }
+        Ok(())
+    }
+
+    fn send_cumulative_ack_if_no_regular_ack_sent(&mut self) -> Result<()> {
+        let cumulative = self.bitset.filled_upto();
+        if let Some(ack) = self.ack_policy.send_ack_if_not_sent(cumulative) {
+            self.send_ack(ack)?;
+        }
         Ok(())
     }
 
@@ -111,8 +126,7 @@ where
             status.inc_total_recv_count(frames.len() as u32);
 
             for (is_already_set, frame) in frames {
-                self.send_ack(&frame)
-                    .or_else(|err| self.bitset.is_full().ok_or(err))?;
+                self.maybe_send_regular_ack(&frame)?;
 
                 if is_already_set {
                     continue;
@@ -121,6 +135,8 @@ where
                 self.writer.write(frame);
                 status.inc_recv_count();
             }
+
+            self.send_cumulative_ack_if_no_regular_ack_sent()?;
 
             if self.bitset.is_full() {
                 self.writer.flush()?;
