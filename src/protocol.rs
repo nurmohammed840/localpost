@@ -162,7 +162,7 @@ impl DataFrame {
 }
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AckFrame {
     cumulative: u32,
     current: Option<u32>,
