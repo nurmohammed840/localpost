@@ -7,6 +7,7 @@ use crate::{
     protocol::{FileInfo, SystemInfo, TransferID},
     receiver::{FileReceiver, RecvStatus},
     sender::FileSender,
+    socket::{AsyncDatagramSocket, async_udp},
 };
 use anyhow::{Result, bail};
 use lipi::{Decode, Encode};
@@ -178,14 +179,16 @@ impl FileRequest {
         receiver_socket.connect(sender_socket_addr)?;
         file_info.tid.udp_port = receiver_socket.local_addr()?.port();
 
+        let receiver_socket = async_udp::UdpSocket::try_from(receiver_socket)?;
+
         if self.mode == Mode::Client {
-            receiver_socket.send(&file_info.tid.to_bytes()?)?;
+            receiver_socket.send(&file_info.tid.to_bytes()?).await?;
         }
 
         let writer = FileWriter::new(file, file_info.frame_size - 4);
         let receiver = FileReceiver::new(writer, receiver_socket, &file_info);
 
-        let task = nio::spawn_blocking(move || receiver.init_receive(status));
+        let task = nio::spawn_local(async { receiver.init_receive(status).await });
 
         if self.mode == Mode::Server {
             self.stream.send(file_info.tid).await?;

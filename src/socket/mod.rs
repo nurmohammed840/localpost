@@ -1,5 +1,4 @@
-#[allow(unused)]
-mod async_udp;
+pub mod async_udp;
 
 use std::{
     io::{ErrorKind, Result},

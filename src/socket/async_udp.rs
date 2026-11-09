@@ -13,14 +13,18 @@ pub struct UdpSocket {
     timeout: Cell<Option<Duration>>,
 }
 
-impl UdpSocket {
-    pub fn from(socket: std::net::UdpSocket) -> io::Result<Self> {
+impl TryFrom<std::net::UdpSocket> for UdpSocket {
+    type Error = io::Error;
+
+    fn try_from(socket: std::net::UdpSocket) -> Result<Self, Self::Error> {
         Ok(Self {
             socket: nio::net::UdpSocket::from_std(socket)?,
             timeout: Cell::new(None),
         })
     }
+}
 
+impl UdpSocket {
     async fn recv_now_or_never(&self, buf: &mut [u8]) -> Option<io::Result<usize>> {
         poll_fn(|cx| match self.socket.recv(buf).poll_unpin(cx) {
             Poll::Ready(x) => Poll::Ready(Some(x)),

@@ -4,14 +4,13 @@ mod status;
 use crate::{
     file::{FileBitSet, FileWriter},
     protocol::{AckFrame, DataFrame, DataFrameLike, ErrorCode, ErrorFrame, FileInfo},
-    socket::DatagramSocket,
+    socket::AsyncDatagramSocket as DatagramSocket,
 };
 use ack_policy::AckPolicy;
 use anyhow::{Context, Result};
 use std::{
     io::{Seek, Write},
     sync::Arc,
-    thread,
     time::{Duration, Instant},
 };
 
@@ -33,7 +32,7 @@ where
 impl<T, S> FileReceiver<T, S>
 where
     T: Write + Seek,
-    S: DatagramSocket + Send + 'static,
+    S: DatagramSocket + 'static,
 {
     pub fn new(writer: FileWriter<T>, socket: S, file_info: &FileInfo) -> Self {
         Self {
@@ -46,40 +45,42 @@ where
         }
     }
 
-    pub fn recv_packets(&mut self) -> Result<Vec<Box<[u8]>>> {
+    pub async fn recv_packets(&mut self) -> Result<Vec<Box<[u8]>>> {
         let mut packets = Vec::new();
 
         self.socket
             .recv_many(&mut packets, self.frame_size, u8::MAX)
+            .await
             .context("failed to receive packets")?;
 
         Ok(packets)
     }
 
-    fn send_ack(&self, ack: AckFrame) -> Result<()> {
+    async fn send_ack(&self, ack: AckFrame) -> Result<()> {
         self.socket
             .send(&ack.to_bytes())
+            .await
             .or_else(|err| self.bitset.is_full().ok_or(err))
             .context("failed to send acknowledgement")
     }
 
-    fn maybe_send_regular_ack(&mut self, frame: &DataFrame) -> Result<()> {
+    async fn maybe_send_regular_ack(&mut self, frame: &DataFrame) -> Result<()> {
         let cumulative = self.bitset.filled_upto();
         if let Some(ack) = self.ack_policy.on_frame_received(cumulative, frame.no()) {
-            self.send_ack(ack)?;
+            self.send_ack(ack).await?;
         }
         Ok(())
     }
 
-    fn send_cumulative_ack_if_no_regular_ack_sent(&mut self) -> Result<()> {
+    async fn send_cumulative_ack_if_no_regular_ack_sent(&mut self) -> Result<()> {
         let cumulative = self.bitset.filled_upto();
         if let Some(ack) = self.ack_policy.send_ack_if_not_sent(cumulative) {
-            self.send_ack(ack)?;
+            self.send_ack(ack).await?;
         }
         Ok(())
     }
 
-    pub fn send_fin_frame(secket: S, frame: &[u8]) -> Result<()> {
+    pub async fn send_fin_frame(secket: S, frame: &[u8]) -> Result<()> {
         let _ = secket.send(frame);
 
         let mut buf = [0; 4];
@@ -91,13 +92,13 @@ where
                 break Ok(());
             }
             secket.set_read_timeout(Some(remaining))?;
-            secket.recv(&mut buf)?;
-            secket.send(frame)?;
+            secket.recv(&mut buf).await?;
+            secket.send(frame).await?;
         }
     }
 
-    pub fn init_receive(mut self, status: Arc<RecvStatus>) -> Result<()> {
-        let result = self._init_receive(status);
+    pub async fn init_receive(mut self, status: Arc<RecvStatus>) -> Result<()> {
+        let result = self._init_receive(status).await;
         let socket = self.socket;
 
         let frame = match result {
@@ -108,13 +109,13 @@ where
             },
         };
 
-        thread::spawn(move || Self::send_fin_frame(socket, &frame.to_bytes()));
+        nio::spawn_local(async move { Self::send_fin_frame(socket, &frame.to_bytes()).await });
         result
     }
 
-    pub fn _init_receive(&mut self, status: Arc<RecvStatus>) -> Result<()> {
+    pub async fn _init_receive(&mut self, status: Arc<RecvStatus>) -> Result<()> {
         loop {
-            let packets = self.recv_packets()?;
+            let packets = self.recv_packets().await?;
             let mut frames = Vec::with_capacity(packets.len());
 
             // This loop update bitset before sending acknowledgement
@@ -126,7 +127,7 @@ where
             status.inc_total_recv_count(frames.len() as u32);
 
             for (is_already_set, frame) in frames {
-                self.maybe_send_regular_ack(&frame)?;
+                self.maybe_send_regular_ack(&frame).await?;
 
                 if is_already_set {
                     continue;
@@ -136,7 +137,7 @@ where
                 status.inc_recv_count();
             }
 
-            self.send_cumulative_ack_if_no_regular_ack_sent()?;
+            self.send_cumulative_ack_if_no_regular_ack_sent().await?;
 
             if self.bitset.is_full() {
                 self.writer.flush()?;
