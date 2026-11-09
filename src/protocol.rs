@@ -103,7 +103,7 @@ impl SystemInfo {
 }
 
 pub struct DataFrame {
-    buf: Box<[u8]>,
+    pub(crate) buf: Box<[u8]>,
 }
 
 impl fmt::Debug for DataFrame {
@@ -160,7 +160,6 @@ impl DataFrame {
         Ok(frame)
     }
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AckFrame {

@@ -19,14 +19,16 @@ where
     }
 
     pub fn next_frame(&mut self) -> Result<Option<DataFrame>> {
-        let mut frame = Vec::from(self.next_frame_no.to_le_bytes());
+        let mut frame = Vec::with_capacity(4 + self.reader.frame_size() as usize);
 
+        frame.extend_from_slice(&self.next_frame_no.to_le_bytes());
         let has_data = self.reader.read_next(&mut frame)?;
+
         if !has_data {
             return Ok(None);
         }
 
-        let frame = DataFrame::try_from(frame.into()).unwrap();
+        let frame = DataFrame { buf: frame.into() };
         self.next_frame_no += 1;
         Ok(Some(frame))
     }

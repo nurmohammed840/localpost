@@ -77,6 +77,10 @@ where
         }
     }
 
+    pub fn frame_size(&self) -> u16 {
+        self.frame_size
+    }
+
     pub fn num_of_frames(&self) -> u64 {
         self.size.div_ceil(self.frame_size as u64)
     }

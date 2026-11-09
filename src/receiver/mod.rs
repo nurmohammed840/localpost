@@ -80,7 +80,7 @@ where
     }
 
     pub async fn send_fin_frame(secket: S, frame: &[u8]) -> Result<()> {
-        let _ = secket.send(frame);
+        let _ = secket.send(frame).await;
 
         let mut buf = [0; 4];
         let deadline = Instant::now() + Duration::from_secs(3);
