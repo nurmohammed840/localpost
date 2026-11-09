@@ -196,8 +196,7 @@ impl FileRequest {
 async fn wait_for_signal(sender: &UdpSocket, random_id: u32) -> Result<()> {
     let mut buf = vec![0; 16];
     for _ in 0..7 {
-        // TODO: Add Deadline
-        let (len, addr) = sender.socket.recv_from(&mut buf).await?;
+        let (len, addr) = sender.recv_from(&mut buf).await?;
 
         let is_tid_matched = TransferID::decode(&mut &buf[..len])
             .ok()
