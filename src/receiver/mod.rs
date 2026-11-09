@@ -1,9 +1,8 @@
 mod ack_policy;
-mod async_file_writer;
 mod status;
 
 use crate::{
-    file::{FileBitSet, FileWriter},
+    file::{AsyncFileWriter, FileBitSet, FileWriter},
     protocol::{AckFrame, DataFrame, DataFrameLike, ErrorCode, ErrorFrame, FileInfo},
     socket::AsyncDatagramSocket as DatagramSocket,
 };
@@ -15,7 +14,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub use async_file_writer::AsyncFileWriter;
 pub use status::RecvStatus;
 
 pub struct FileReceiver<S> {
