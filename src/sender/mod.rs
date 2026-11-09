@@ -5,7 +5,7 @@ mod utils;
 use crate::protocol::{AckFrame, DataFrameLike, ErrorFrame};
 use crate::{
     file::{FileReader, FrameReader},
-    socket::DatagramSocket,
+    socket::AsyncDatagramSocket as DatagramSocket,
 };
 use anyhow::{Result, bail};
 use congestion::LostList;
@@ -49,11 +49,11 @@ where
         }
     }
 
-    fn recv_ack(&mut self) -> Result<Option<AckFrame>> {
+    async fn recv_ack(&mut self) -> Result<Option<AckFrame>> {
         let rto = self.rtt_estimator.rto();
         self.socket.set_read_timeout(Some(rto))?;
 
-        let len = match self.socket.recv(&mut self.recv_buf) {
+        let len = match self.socket.recv(&mut self.recv_buf).await {
             Err(err) if matches!(err.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {
                 return Ok(None);
             }
@@ -65,7 +65,7 @@ where
         AckFrame::try_from(frame).map(Some)
     }
 
-    pub fn init_send(&mut self) -> Result<()> {
+    pub async fn init_send(&mut self) -> Result<()> {
         loop {
             let frames = iter::from_fn(|| {
                 let lost_frame = self.lost_list.pop().map(Ok);
@@ -74,7 +74,7 @@ where
 
             for frame in frames.take(self.outgoing.remaining_capacity()) {
                 let data = frame?;
-                self.socket.send(data.as_bytes())?;
+                self.socket.send(data.as_bytes()).await?;
                 self.outgoing.send(data);
             }
 
@@ -87,7 +87,7 @@ where
                 bail!("connection timed out after {time_since_last_seen:.3?}");
             }
 
-            let ack = self.recv_ack();
+            let ack = self.recv_ack().await;
 
             let is_fin_ack = ack
                 .as_ref()

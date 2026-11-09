@@ -4,11 +4,10 @@ use localpost::{
     protocol::FileInfo,
     receiver::{FileReceiver, RecvStatus},
     sender::FileSender,
-    socket::async_udp,
+    socket::async_udp::UdpSocket,
 };
 use std::{
     io::{self, Read, Seek, SeekFrom, Write},
-    net::UdpSocket,
     time::Instant,
 };
 
@@ -55,25 +54,23 @@ impl Write for MockFile {
 #[test]
 fn test_file_transfer() -> Result<()> {
     block_on(async || {
-        let sender_socket = UdpSocket::bind("127.0.0.1:0")?;
-        let receiver_socket = UdpSocket::bind("127.0.0.1:0")?;
+        let sender = UdpSocket::bind("127.0.0.1:0").await?;
+        let receiver = UdpSocket::bind("127.0.0.1:0").await?;
 
-        sender_socket.connect(receiver_socket.local_addr()?)?;
-        receiver_socket.connect(sender_socket.local_addr()?)?;
-
-        let receiver_socket = async_udp::UdpSocket::try_from(receiver_socket)?;
+        sender.socket.connect(receiver.socket.local_addr()?).await?;
+        receiver.socket.connect(sender.socket.local_addr()?).await?;
 
         let frame_size = 1400;
         let file_size = 32 * 1024 * 1024;
 
-        let task = nio::spawn_blocking(move || {
+        let task = nio::spawn_local(async move {
             let reader = FileReader::new(MockFile::default(), frame_size, file_size);
-            FileSender::new(reader, sender_socket).init_send()
+            FileSender::new(reader, sender).init_send().await
         });
 
         let file_info = file_info(frame_size, file_size);
         let writer = FileWriter::new(MockFile::default(), frame_size);
-        let mut receiver = FileReceiver::new(writer, receiver_socket, &file_info);
+        let mut receiver = FileReceiver::new(writer, receiver, &file_info);
 
         let time = Instant::now();
 

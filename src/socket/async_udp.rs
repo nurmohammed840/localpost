@@ -4,12 +4,13 @@ use std::{
     cell::Cell,
     future::poll_fn,
     io::{self, ErrorKind},
+    net::ToSocketAddrs,
     task::Poll,
     time::Duration,
 };
 
 pub struct UdpSocket {
-    socket: nio::net::UdpSocket,
+    pub socket: nio::net::UdpSocket,
     timeout: Cell<Option<Duration>>,
 }
 
@@ -25,6 +26,13 @@ impl TryFrom<std::net::UdpSocket> for UdpSocket {
 }
 
 impl UdpSocket {
+    pub async fn bind<A: ToSocketAddrs>(addr: A) -> io::Result<Self> {
+        Ok(Self {
+            socket: nio::net::UdpSocket::bind(addr).await?,
+            timeout: Cell::new(None),
+        })
+    }
+
     async fn recv_now_or_never(&self, buf: &mut [u8]) -> Option<io::Result<usize>> {
         poll_fn(|cx| match self.socket.recv(buf).poll_unpin(cx) {
             Poll::Ready(x) => Poll::Ready(Some(x)),

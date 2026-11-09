@@ -7,7 +7,7 @@ use crate::{
     protocol::{FileInfo, SystemInfo, TransferID},
     receiver::{FileReceiver, RecvStatus},
     sender::FileSender,
-    socket::{AsyncDatagramSocket, async_udp},
+    socket::{AsyncDatagramSocket, async_udp::UdpSocket},
 };
 use anyhow::{Result, bail};
 use lipi::{Decode, Encode};
@@ -15,7 +15,7 @@ use nio::net::{TcpListener, TcpStream};
 use std::{
     fs::File,
     io::{Seek, Write},
-    net::{SocketAddr, ToSocketAddrs, UdpSocket},
+    net::{SocketAddr, ToSocketAddrs},
     path::PathBuf,
     sync::Arc,
     time::Duration,
@@ -25,8 +25,9 @@ use yamux::Mode;
 type MuxEndpoint = mux::Endpoint<TcpStream>;
 
 pub fn create_udp_socket(local_addr: SocketAddr) -> Result<UdpSocket> {
-    let socket: UdpSocket = UdpSocket::bind((local_addr.ip(), 0))?;
-    socket.set_read_timeout(Some(Duration::from_secs(7)))?;
+    let socket = std::net::UdpSocket::bind((local_addr.ip(), 0))?;
+    let socket = UdpSocket::try_from(socket)?;
+    socket.set_read_timeout(Some(Duration::from_secs(30)))?;
     Ok(socket)
 }
 
@@ -117,29 +118,25 @@ impl Endpoint {
         let (reader, mut file_info) =
             nio::spawn_blocking(move || FileReader::open(path, frame_size)).await??;
 
-        let sender_socket = create_udp_socket(self.local_addr)?;
-        file_info.tid.udp_port = sender_socket.local_addr()?.port();
+        let sender = create_udp_socket(self.local_addr)?;
+        file_info.tid.udp_port = sender.socket.local_addr()?.port();
 
         match self.mode {
             Mode::Client => {
                 stream.send(file_info).await?;
                 let tid: TransferID = stream.recv().await?;
                 let receiver_socket_addr = (self.peer_addr.ip(), tid.udp_port);
-                sender_socket.connect(receiver_socket_addr)?;
+                sender.socket.connect(receiver_socket_addr).await?;
 
-                let task = nio::spawn_blocking(|| -> Result<()> {
-                    FileSender::new(reader, sender_socket).init_send()
-                });
-
-                task.await?
+                FileSender::new(reader, sender).init_send().await
             }
             Mode::Server => {
                 let random_id = fastrand::u32(..);
                 file_info.tid.id = Some(random_id);
 
-                let task = nio::spawn_blocking(move || -> Result<()> {
-                    wait_for_signal(&sender_socket, random_id)?;
-                    FileSender::new(reader, sender_socket).init_send()
+                let task = nio::spawn_local(async move {
+                    wait_for_signal(&sender, random_id).await?;
+                    FileSender::new(reader, sender).init_send().await
                 });
 
                 stream.send(file_info).await?;
@@ -173,20 +170,18 @@ impl FileRequest {
         status: Arc<RecvStatus>,
     ) -> Result<()> {
         let mut file_info = self.file_info().await?.clone();
-        let receiver_socket = create_udp_socket(self.local_addr)?;
+        let receiver = create_udp_socket(self.local_addr)?;
         let sender_socket_addr = (self.peer_addr.ip(), file_info.tid.udp_port);
 
-        receiver_socket.connect(sender_socket_addr)?;
-        file_info.tid.udp_port = receiver_socket.local_addr()?.port();
-
-        let receiver_socket = async_udp::UdpSocket::try_from(receiver_socket)?;
+        receiver.socket.connect(sender_socket_addr).await?;
+        file_info.tid.udp_port = receiver.socket.local_addr()?.port();
 
         if self.mode == Mode::Client {
-            receiver_socket.send(&file_info.tid.to_bytes()?).await?;
+            receiver.send(&file_info.tid.to_bytes()?).await?;
         }
 
         let writer = FileWriter::new(file, file_info.frame_size - 4);
-        let receiver = FileReceiver::new(writer, receiver_socket, &file_info);
+        let receiver = FileReceiver::new(writer, receiver, &file_info);
 
         let task = nio::spawn_local(async { receiver.init_receive(status).await });
 
@@ -198,10 +193,11 @@ impl FileRequest {
     }
 }
 
-fn wait_for_signal(socket: &UdpSocket, random_id: u32) -> Result<()> {
+async fn wait_for_signal(sender: &UdpSocket, random_id: u32) -> Result<()> {
     let mut buf = vec![0; 16];
     for _ in 0..7 {
-        let (len, addr) = socket.recv_from(&mut buf)?;
+        // TODO: Add Deadline
+        let (len, addr) = sender.socket.recv_from(&mut buf).await?;
 
         let is_tid_matched = TransferID::decode(&mut &buf[..len])
             .ok()
@@ -210,7 +206,7 @@ fn wait_for_signal(socket: &UdpSocket, random_id: u32) -> Result<()> {
             });
 
         if is_tid_matched {
-            socket.connect(addr)?;
+            sender.socket.connect(addr).await?;
             return Ok(());
         }
     }
