@@ -1,6 +1,6 @@
 mod ack_policy;
+mod async_file_writer;
 mod status;
-pub mod async_file_writer;
 
 use crate::{
     file::{FileBitSet, FileWriter},
@@ -15,14 +15,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+pub use async_file_writer::AsyncFileWriter;
 pub use status::RecvStatus;
 
-pub struct FileReceiver<T, S>
-where
-    T: Write + Seek,
-{
-    writer: FileWriter<T>,
+pub struct FileReceiver<S> {
     socket: S,
+    writer: AsyncFileWriter,
     bitset: FileBitSet,
     ack_policy: AckPolicy,
 
@@ -30,14 +28,16 @@ where
     pub flush_threshold: usize,
 }
 
-impl<T, S> FileReceiver<T, S>
+impl<S> FileReceiver<S>
 where
-    T: Write + Seek,
     S: DatagramSocket + 'static,
 {
-    pub fn new(writer: FileWriter<T>, socket: S, file_info: &FileInfo) -> Self {
+    pub fn new<T>(writer: FileWriter<T>, socket: S, file_info: &FileInfo) -> Self
+    where
+        T: Write + Seek + Send + 'static,
+    {
         Self {
-            writer,
+            writer: AsyncFileWriter::new(writer, 32 * 1024 * 1024),
             socket,
             ack_policy: AckPolicy::default(),
             bitset: FileBitSet::new(file_info.num_of_frames()),
@@ -111,6 +111,11 @@ where
         };
 
         nio::spawn_local(async move { Self::send_fin_frame(socket, &frame.to_bytes()).await });
+
+        if result.is_ok() {
+            self.writer.finish().await?;
+        }
+
         result
     }
 
@@ -134,19 +139,14 @@ where
                     continue;
                 }
 
-                self.writer.write(frame);
+                self.writer.write(frame).await?;
                 status.inc_recv_count();
             }
 
             self.send_cumulative_ack_if_no_regular_ack_sent().await?;
 
             if self.bitset.is_full() {
-                self.writer.flush()?;
                 return Ok(());
-            }
-
-            if self.writer.total_bytes() >= self.flush_threshold {
-                self.writer.flush()?;
             }
         }
     }

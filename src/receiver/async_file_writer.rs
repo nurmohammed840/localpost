@@ -84,10 +84,8 @@ impl AsyncFileWriter {
 
         poll_fn(|cx| {
             if let Poll::Ready(result) = self.task.poll_unpin(cx) {
-                return Poll::Ready(Err(match result? {
-                    Err(err) => err,
-                    Ok(_) => closed(),
-                }));
+                result??;
+                return Poll::Ready(Err(closed()));
             }
 
             if self.has_room() {

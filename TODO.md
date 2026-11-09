@@ -1,5 +1,5 @@
 - [x] Implement TCP Server Interface
-- [ ] Make `FileReceiver` write data concurrently
+- [x] Make `FileReceiver` write data concurrently
 - [x] Use Async UDP Socket
 - [ ] Use `quinn-udp` library for bulk io
 - [x] Refactor `AckFrame`
