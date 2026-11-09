@@ -1,5 +1,6 @@
 mod ack_policy;
 mod status;
+pub mod async_file_writer;
 
 use crate::{
     file::{FileBitSet, FileWriter},
