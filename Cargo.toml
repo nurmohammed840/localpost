@@ -16,5 +16,6 @@ local-ip-address = "0.6"
 futures = { version = "0.3", features = ["write-all-vectored"] }
 yamux = "0.14"
 fastrand = "2"
+flume = "0.12"
 # log = "0.4"
 # dirs = "7"
