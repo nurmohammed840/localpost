@@ -1,3 +1,9 @@
+#[doc(hidden)]
+pub mod deps {
+    pub use futures;
+    pub use nio;
+}
+
 pub use local_ip_address;
 
 pub mod discover;

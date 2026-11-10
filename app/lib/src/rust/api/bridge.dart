@@ -6,4 +6,6 @@
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `block_on`
+
 Future<String> getLocalIp() => RustLib.instance.api.crateApiBridgeGetLocalIp();
