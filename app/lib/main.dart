@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:localpost/settings.dart';
 import 'package:localpost/signal.dart';
-import 'package:localpost/src/rust/api/simple.dart';
+import 'package:localpost/src/rust/api/bridge.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 import 'package:localpost/utils.dart';
 

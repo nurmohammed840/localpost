@@ -6,4 +6,4 @@
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 
-Future<String> getLocalIp() => RustLib.instance.api.crateApiSimpleGetLocalIp();
+Future<String> getLocalIp() => RustLib.instance.api.crateApiBridgeGetLocalIp();

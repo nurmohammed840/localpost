@@ -10,7 +10,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
-import 'package:localpost/src/rust/api/simple.dart';
+import 'package:localpost/src/rust/api/bridge.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {

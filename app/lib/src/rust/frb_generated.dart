@@ -7,7 +7,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'package:localpost/src/rust/api/simple.dart';
+import 'package:localpost/src/rust/api/bridge.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 import 'package:localpost/src/rust/frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
@@ -55,7 +55,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
   @override
   Future<void> executeRustInitializers() async {
-    await api.crateApiSimpleInitApp();
+    await api.crateApiBridgeInitApp();
   }
 
   @override
@@ -66,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 724515597;
+  int get rustContentHash => -1768676371;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -77,9 +77,9 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  Future<String> crateApiSimpleGetLocalIp();
+  Future<String> crateApiBridgeGetLocalIp();
 
-  Future<void> crateApiSimpleInitApp();
+  Future<void> crateApiBridgeInitApp();
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -91,7 +91,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Future<String> crateApiSimpleGetLocalIp() {
+  Future<String> crateApiBridgeGetLocalIp() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -107,18 +107,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_String,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiSimpleGetLocalIpConstMeta,
+        constMeta: kCrateApiBridgeGetLocalIpConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSimpleGetLocalIpConstMeta =>
+  TaskConstMeta get kCrateApiBridgeGetLocalIpConstMeta =>
       const TaskConstMeta(debugName: "get_local_ip", argNames: []);
 
   @override
-  Future<void> crateApiSimpleInitApp() {
+  Future<void> crateApiBridgeInitApp() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -134,14 +134,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiSimpleInitAppConstMeta,
+        constMeta: kCrateApiBridgeInitAppConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSimpleInitAppConstMeta =>
+  TaskConstMeta get kCrateApiBridgeInitAppConstMeta =>
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @protected
