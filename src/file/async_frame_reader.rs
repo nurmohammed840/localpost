@@ -1,4 +1,7 @@
-use crate::{file::FrameReader, protocol::DataFrame};
+use crate::{
+    file::{FileReader, FrameReader},
+    protocol::DataFrame,
+};
 use anyhow::Result;
 use std::io::{Read, Seek};
 
@@ -8,7 +11,7 @@ pub struct AsyncFrameReader {
 }
 
 impl AsyncFrameReader {
-    pub fn new<T>(mut frames: FrameReader<T>, prefetch: usize) -> Self
+    pub fn new<T>(reader: FileReader<T>, prefetch: usize) -> Self
     where
         T: Read + Seek + Send + 'static,
     {
@@ -17,6 +20,7 @@ impl AsyncFrameReader {
         let (tx, rx) = flume::bounded(prefetch);
 
         let task = move || {
+            let mut frames = FrameReader::new(reader);
             while let Some(frame) = frames.next_frame()? {
                 if tx.send(frame).is_err() {
                     break;

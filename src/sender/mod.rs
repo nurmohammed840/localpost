@@ -2,9 +2,9 @@ pub mod congestion;
 pub mod rtt_estimator;
 mod utils;
 
-use crate::protocol::{AckFrame, DataFrameLike, ErrorFrame};
 use crate::{
-    file::{FileReader, FrameReader},
+    file::{AsyncFrameReader, FileReader},
+    protocol::{AckFrame, DataFrame, DataFrameLike, ErrorFrame},
     socket::AsyncDatagramSocket as DatagramSocket,
 };
 use anyhow::{Result, bail};
@@ -12,13 +12,12 @@ use congestion::LostList;
 use rtt_estimator::RttEstimator;
 use std::{
     io::{ErrorKind, Read, Seek},
-    iter,
     time::{Duration, Instant},
 };
 
-pub struct FileSender<T, S> {
-    reader: FrameReader<T>,
+pub struct FileSender<S> {
     socket: S,
+    reader: AsyncFrameReader,
 
     lost_list: LostList,
 
@@ -31,14 +30,16 @@ pub struct FileSender<T, S> {
     recv_buf: Vec<u8>,
 }
 
-impl<T, S> FileSender<T, S>
+impl<S> FileSender<S>
 where
-    T: Seek + Read,
     S: DatagramSocket,
 {
-    pub fn new(reader: FileReader<T>, socket: S) -> Self {
+    pub fn new<T>(reader: FileReader<T>, socket: S) -> Self
+    where
+        T: Seek + Read + Send + 'static,
+    {
         Self {
-            reader: FrameReader::new(reader),
+            reader: AsyncFrameReader::new(reader, 8 * 1024),
             socket,
             lost_list: LostList::default(),
             rtt_estimator: RttEstimator::new(Duration::from_secs(3)),
@@ -65,15 +66,21 @@ where
         AckFrame::try_from(frame).map(Some)
     }
 
+    async fn next_frame_to_send(&mut self) -> Result<Option<DataFrame>> {
+        // Retransmit lost frames first
+        match self.lost_list.pop() {
+            Some(frame) => Ok(Some(frame)),
+            None => self.reader.next_frame().await,
+        }
+    }
+
     pub async fn init_send(&mut self) -> Result<()> {
         loop {
-            let frames = iter::from_fn(|| {
-                let lost_frame = self.lost_list.pop().map(Ok);
-                lost_frame.or_else(|| self.reader.next_frame().transpose())
-            });
+            for _ in 0..self.outgoing.remaining_capacity() {
+                let Some(data) = self.next_frame_to_send().await? else {
+                    break;
+                };
 
-            for frame in frames.take(self.outgoing.remaining_capacity()) {
-                let data = frame?;
                 self.socket.send(data.as_bytes()).await?;
                 self.outgoing.send(data);
             }

@@ -659,7 +659,7 @@ dependencies = [
 [[package]]
 name = "mpmc-channel"
 version = "0.0.0"
-source = "git+https://github.com/nurmohammed840/nio#cba1e9efc0a2f418b600f49c1150ee202dabd1fe"
+source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
 
 [[package]]
 name = "neli"
@@ -693,8 +693,8 @@ dependencies = [
 
 [[package]]
 name = "nio"
-version = "0.2.0-rc.1"
-source = "git+https://github.com/nurmohammed840/nio#cba1e9efc0a2f418b600f49c1150ee202dabd1fe"
+version = "0.2.0-rc.2"
+source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
 dependencies = [
  "crossbeam-queue",
  "crossbeam-utils",
@@ -710,12 +710,12 @@ dependencies = [
 [[package]]
 name = "nio-future"
 version = "0.0.1"
-source = "git+https://github.com/nurmohammed840/nio#cba1e9efc0a2f418b600f49c1150ee202dabd1fe"
+source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
 
 [[package]]
 name = "nio-macros"
 version = "0.3.0"
-source = "git+https://github.com/nurmohammed840/nio#cba1e9efc0a2f418b600f49c1150ee202dabd1fe"
+source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
 dependencies = [
  "quote2",
  "syn 3.0.9",
@@ -724,17 +724,17 @@ dependencies = [
 [[package]]
 name = "nio-metrics"
 version = "0.0.0"
-source = "git+https://github.com/nurmohammed840/nio#cba1e9efc0a2f418b600f49c1150ee202dabd1fe"
+source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
 
 [[package]]
 name = "nio-task"
 version = "0.2.0"
-source = "git+https://github.com/nurmohammed840/nio#cba1e9efc0a2f418b600f49c1150ee202dabd1fe"
+source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
 
 [[package]]
 name = "nio-threadpool"
-version = "0.1.0"
-source = "git+https://github.com/nurmohammed840/nio#cba1e9efc0a2f418b600f49c1150ee202dabd1fe"
+version = "0.2.0"
+source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
 dependencies = [
  "mpmc-channel",
 ]

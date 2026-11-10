@@ -10,7 +10,7 @@ edition = "2024"
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
 sysinfo = { version = "0.39", default-features = false, features = ["system"] }
-nio = { git = "https://github.com/nurmohammed840/nio", version = "0.2.0-rc.1" }
+nio = { git = "https://github.com/nurmohammed840/nio", version = "0.2.0-rc.2" }
 lipi = { git = "https://github.com/nurmohammed840/setu" }
 local-ip-address = "0.6"
 futures = { version = "0.3", features = ["write-all-vectored"] }
