@@ -38,6 +38,10 @@ impl<T: Write + Seek> FileWriter<T> {
         }
     }
 
+    pub fn frame_size(&self) -> u16 {
+        self.frame_size
+    }
+
     pub fn total_bytes(&self) -> usize {
         self.total_bytes
     }
