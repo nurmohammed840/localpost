@@ -24,6 +24,8 @@ abstract class ResEndpoint implements RustOpaqueInterface {
 
   static Future<(ResEndpoint, SystemInfo)> open({required String addr}) =>
       RustLib.instance.api.crateApiBridgeResEndpointOpen(addr: addr);
+
+  Future<void> sendFile({required String path, required int frameSize});
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>>

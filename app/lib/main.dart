@@ -7,7 +7,7 @@ import 'package:localpost/utils.dart';
 
 Future<void> main() async {
   await RustLib.init();
-  final addr = await getLocalIp();
+  final addr = getLocalIp();
   runApp(MyApp(addr: addr));
 }
 

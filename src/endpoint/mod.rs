@@ -14,7 +14,6 @@ use lipi::{Decode, Encode};
 use nio::net::{TcpListener, TcpStream};
 use std::{
     cell::RefCell,
-    fs::File,
     io::{Seek, Write},
     net::{SocketAddr, ToSocketAddrs},
     path::PathBuf,
@@ -97,7 +96,7 @@ impl Endpoint {
         ))
     }
 
-    pub async fn accept_request(&mut self) -> Result<Option<FileRequest>> {
+    pub async fn accept_request(&self) -> Result<Option<FileRequest>> {
         let req = self
             .endpoint
             .accept_stream()
@@ -113,7 +112,7 @@ impl Endpoint {
         Ok(req)
     }
 
-    pub async fn send_file(&mut self, path: PathBuf, frame_size: u16) -> Result<()> {
+    pub async fn send_file(&self, path: PathBuf, frame_size: u16) -> Result<()> {
         let stream = self.endpoint.create_stream().await?;
 
         let (reader, mut file_info) =
@@ -218,44 +217,4 @@ async fn wait_for_signal(sender: &UdpSocket, random_id: u32) -> Result<()> {
     }
 
     bail!("Unable to connect")
-}
-
-pub async fn run_server() -> Result<()> {
-    let mut listener = Listener::new(50001).await?;
-
-    loop {
-        let (conn, info) = match listener.accept().await {
-            Ok(conn) => conn,
-            Err(_) => continue,
-        };
-
-        nio::spawn_local(async move {
-            let mut endpoint = conn.handshake().await.unwrap();
-
-            while let Some(request) = endpoint.accept_request().await.unwrap() {
-                nio::spawn_local(async move {
-                    let info = request.file_info().await.unwrap().clone();
-                    println!("File Request: {info:?}");
-
-                    let file = nio::spawn_blocking(|| {
-                        File::options()
-                            .truncate(false)
-                            .create(true)
-                            .write(true)
-                            .open("file.txt")
-                    })
-                    .await
-                    .unwrap()
-                    .unwrap();
-
-                    let status = RecvStatus::new();
-
-                    request.receive(file, status).await.unwrap();
-                    println!("File Download Complete: {info:?}")
-                });
-            }
-
-            println!("Connection Closed: {}", info.hostname);
-        });
-    }
 }

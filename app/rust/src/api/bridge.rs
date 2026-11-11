@@ -1,4 +1,4 @@
-use std::{fs::File, sync::Arc};
+use std::{fs::File, path::PathBuf, sync::Arc};
 
 use crate::{
     frb_generated::StreamSink,
@@ -6,7 +6,6 @@ use crate::{
     runtime::{block_on, init_async_runtime, spawn_blocking},
 };
 use deps::anyhow::Result;
-use derive_more::From;
 use flutter_rust_bridge::frb;
 use localpost::{
     deps,
@@ -54,10 +53,16 @@ pub fn get_local_ip() -> String {
 }
 
 #[frb(opaque)]
-#[derive(From)]
-#[from(Endpoint)]
 pub struct ResEndpoint {
-    endpoint: Res<Endpoint>,
+    endpoint: Arc<Res<Endpoint>>,
+}
+
+impl From<Endpoint> for ResEndpoint {
+    fn from(value: Endpoint) -> Self {
+        Self {
+            endpoint: Arc::new(value.into()),
+        }
+    }
 }
 
 impl ResEndpoint {
@@ -68,9 +73,17 @@ impl ResEndpoint {
         })
     }
 
-    pub fn accept_requests(self, sink: StreamSink<ResFile>) {
+    pub fn send_file(&self, path: String, frame_size: u16) -> Result<()> {
+        let endpoint = self.endpoint.clone();
+        let path = PathBuf::from(path);
+
+        block_on(async move || endpoint.send_file(path, frame_size).await)
+    }
+
+    pub fn accept_requests(&self, sink: StreamSink<ResFile>) {
+        let endpoint = self.endpoint.clone();
+
         block_on(async move || {
-            let mut endpoint = self.endpoint.take();
             while let Some(result) = endpoint.accept_request().await.transpose() {
                 let sent = match result {
                     Ok(request) => sink.add(request.into()),
@@ -85,10 +98,14 @@ impl ResEndpoint {
 }
 
 #[frb(opaque)]
-#[derive(From)]
-#[from(Connection)]
 pub struct ResConnection {
     conn: Res<Connection>,
+}
+
+impl From<Connection> for ResConnection {
+    fn from(value: Connection) -> Self {
+        Self { conn: value.into() }
+    }
 }
 
 impl ResConnection {
@@ -111,6 +128,7 @@ pub fn run_server(port: u16, sink: StreamSink<(ResConnection, SystemInfo)>) -> R
                 Ok((conn, info)) => sink.add((conn.into(), info)),
                 Err(error) => sink.add_error(error),
             };
+
             if sent.is_err() {
                 break Ok(());
             }

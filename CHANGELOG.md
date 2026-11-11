@@ -4,7 +4,7 @@
 
 ### Added
 - [x] Implement TCP Server Interface
-- [ ] Generate FFI bindings for TCP Server Interface
+- [x] Generate FFI bindings for TCP Server Interface
 - [ ] Create APP!
 
 ### Changed
