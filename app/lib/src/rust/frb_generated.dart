@@ -66,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1730804110;
+  int get rustContentHash => 1232521215;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -114,8 +114,6 @@ abstract class RustLibApi extends BaseApi {
   Stream<(ResConnection, SystemInfo)> crateApiBridgeServerRun({
     required Server that,
   });
-
-  String crateApiBridgeGetLocalIp();
 
   Future<void> crateApiBridgeInitApp();
 
@@ -517,28 +515,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "Server_run", argNames: ["that", "sink"]);
 
   @override
-  String crateApiBridgeGetLocalIp() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiBridgeGetLocalIpConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiBridgeGetLocalIpConstMeta =>
-      const TaskConstMeta(debugName: "get_local_ip", argNames: []);
-
-  @override
   Future<void> crateApiBridgeInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -547,7 +523,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 11,
             port: port_,
           );
         },

@@ -36,11 +36,6 @@ pub struct Listener {
 }
 
 impl Listener {
-    pub async fn new(port: u16) -> Result<Self> {
-        let local_ip = local_ip_address::local_ip()?;
-        Self::listen((local_ip, port)).await
-    }
-
     pub async fn listen(addr: impl ToSocketAddrs) -> Result<Self> {
         Ok(Listener {
             tcp: TcpListener::bind(addr).await?,

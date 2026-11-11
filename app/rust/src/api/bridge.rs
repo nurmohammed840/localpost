@@ -44,12 +44,6 @@ pub fn init_app() {
     init_async_runtime();
 }
 
-#[frb(sync)]
-pub fn get_local_ip() -> Result<String> {
-    let ip = local_ip_address::local_ip()?;
-    Ok(ip.to_string())
-}
-
 #[frb(opaque)]
 pub struct ResEndpoint {
     endpoint: Arc<Res<Endpoint>>,
