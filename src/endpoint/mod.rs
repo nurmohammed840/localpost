@@ -60,7 +60,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    async fn handshake(mut self) -> Result<Endpoint> {
+    pub async fn handshake(mut self) -> Result<Endpoint> {
         handshake::send_hello(&mut self.stream).await?;
         Ok(Endpoint {
             local_addr: self.stream.local_addr()?,

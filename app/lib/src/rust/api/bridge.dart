@@ -6,6 +6,51 @@
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `block_on`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`
 
 Future<String> getLocalIp() => RustLib.instance.api.crateApiBridgeGetLocalIp();
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResEndpoint>>
+abstract class ResEndpoint implements RustOpaqueInterface {
+  Stream<ResFile> acceptRequests();
+
+  static Future<(ResEndpoint, SystemInfo)> open({required String addr}) =>
+      RustLib.instance.api.crateApiBridgeResEndpointOpen(addr: addr);
+}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>>
+abstract class ResFile implements RustOpaqueInterface {}
+
+class SystemInfo {
+  const SystemInfo({
+    required this.osName,
+    required this.osVersion,
+    required this.osType,
+    required this.architecture,
+    required this.hostname,
+  });
+  final String osName;
+  final String osVersion;
+  final String osType;
+  final String architecture;
+  final String hostname;
+
+  @override
+  int get hashCode =>
+      osName.hashCode ^
+      osVersion.hashCode ^
+      osType.hashCode ^
+      architecture.hashCode ^
+      hostname.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SystemInfo &&
+          runtimeType == other.runtimeType &&
+          osName == other.osName &&
+          osVersion == other.osVersion &&
+          osType == other.osType &&
+          architecture == other.architecture &&
+          hostname == other.hostname;
+}

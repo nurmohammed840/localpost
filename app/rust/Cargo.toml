@@ -8,6 +8,8 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 localpost = { path = "../../" }
+send_wrapper = "0.6"
+derive_more = { version = "2", features = ["from"] }
 flutter_rust_bridge = { version = "=2.13.0", default-features = false, features = [
     "anyhow",
     "dart-opaque",

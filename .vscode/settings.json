@@ -28,6 +28,6 @@
         "app/rust_builder": true,
         //
         "app/rust/src/frb_generated.rs": true,
-        "app/rust/src/lib.rs": true,
+        // "app/rust/src/lib.rs": true,
     }
 }
