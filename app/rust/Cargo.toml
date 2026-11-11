@@ -18,7 +18,6 @@ flutter_rust_bridge = { version = "=2.13.0", default-features = false, features 
     "rust-async",
     "thread-pool",
     # "user-utils",
-    # "wasm-start",
 ] }
 
 [lints.rust]

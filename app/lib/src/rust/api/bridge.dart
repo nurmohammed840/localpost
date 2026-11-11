@@ -6,6 +6,7 @@
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `total_and_recv_count`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`
 
 Future<String> getLocalIp() => RustLib.instance.api.crateApiBridgeGetLocalIp();
@@ -19,7 +20,51 @@ abstract class ResEndpoint implements RustOpaqueInterface {
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>>
-abstract class ResFile implements RustOpaqueInterface {}
+abstract class ResFile implements RustOpaqueInterface {
+  Future<FileInfo> fileInfo();
+
+  Future<void> receive({required String path, required ResRecvStatus status});
+}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResRecvStatus>>
+abstract class ResRecvStatus implements RustOpaqueInterface {
+  factory ResRecvStatus() =>
+      RustLib.instance.api.crateApiBridgeResRecvStatusNew();
+}
+
+class FileInfo {
+  const FileInfo({
+    required this.tid,
+    required this.name,
+    required this.size,
+    required this.frameSize,
+    required this.lastModified,
+  });
+  final TransferID tid;
+  final Uint8List name;
+  final BigInt size;
+  final int frameSize;
+  final BigInt lastModified;
+
+  @override
+  int get hashCode =>
+      tid.hashCode ^
+      name.hashCode ^
+      size.hashCode ^
+      frameSize.hashCode ^
+      lastModified.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FileInfo &&
+          runtimeType == other.runtimeType &&
+          tid == other.tid &&
+          name == other.name &&
+          size == other.size &&
+          frameSize == other.frameSize &&
+          lastModified == other.lastModified;
+}
 
 class SystemInfo {
   const SystemInfo({
@@ -53,4 +98,21 @@ class SystemInfo {
           osType == other.osType &&
           architecture == other.architecture &&
           hostname == other.hostname;
+}
+
+class TransferID {
+  const TransferID({required this.udpPort, this.id});
+  final int udpPort;
+  final int? id;
+
+  @override
+  int get hashCode => udpPort.hashCode ^ id.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TransferID &&
+          runtimeType == other.runtimeType &&
+          udpPort == other.udpPort &&
+          id == other.id;
 }

@@ -11,11 +11,10 @@ use flutter_rust_bridge::frb;
 use localpost::{
     deps,
     endpoint::{Endpoint, FileRequest},
-    protocol::{FileInfo, TransferID},
     receiver::RecvStatus,
 };
 
-pub use localpost::protocol::SystemInfo;
+pub use localpost::protocol::{SystemInfo, FileInfo, TransferID};
 
 #[frb(mirror(SystemInfo))]
 pub struct _SystemInfo {
@@ -96,7 +95,11 @@ impl ResRecvStatus {
             inner: RecvStatus::new(),
         }
     }
-    
+
+    #[frb(sync)]
+    fn total_and_recv_count(&self) -> (u32, u32) {
+        self.inner.total_and_recv_count()
+    }
 }
 
 #[frb(opaque)]
@@ -129,8 +132,7 @@ impl ResFile {
             })
             .await??;
 
-            self.req.receive(file, status.inner.clone()).await.unwrap();
-            Ok(())
+            self.req.receive(file, status.inner.clone()).await
         })
     }
 }
