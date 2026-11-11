@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     scaffoldMessengerKey: scaffoldMessengerKey,
     debugShowCheckedModeBanner: false,
-    themeMode: .light,
+    themeMode: .dark,
     theme: .light(),
     darkTheme: .dark(),
     title: 'Local Post',

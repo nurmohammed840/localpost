@@ -5,7 +5,7 @@ use crate::{
     resource::Res,
     runtime::{block_on, init_async_runtime, spawn_blocking},
 };
-use deps::{anyhow::Result, local_ip_address};
+use deps::anyhow::Result;
 use flutter_rust_bridge::frb;
 use localpost::{
     deps,
@@ -14,6 +14,7 @@ use localpost::{
 };
 
 pub use localpost::protocol::{FileInfo, SystemInfo, TransferID};
+use qrcode::{render::svg, QrCode};
 
 #[frb(mirror(SystemInfo))]
 pub struct _SystemInfo {
@@ -124,7 +125,7 @@ impl From<Listener> for Server {
 }
 
 impl Server {
-    pub fn bind(port: u16) -> Result<(Server, String)> {
+    pub fn bind(port: u16) -> Result<(Server, String, String)> {
         block_on(async move || {
             let ip = local_ip_address::local_ip()?;
 
@@ -133,8 +134,16 @@ impl Server {
                 res => res,
             }?;
 
-            let addr = listener.tcp.local_addr()?;
-            Ok((listener.into(), addr.to_string()))
+            let addr = listener.tcp.local_addr()?.to_string();
+
+            let svg = QrCode::new(addr.as_bytes())?
+                .render::<svg::Color>()
+                .quiet_zone(true)
+                .dark_color(svg::Color("#000000"))
+                .light_color(svg::Color("#ffffff"))
+                .build();
+
+            Ok((listener.into(), addr, svg))
         })
     }
 

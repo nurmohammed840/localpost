@@ -40,7 +40,7 @@ abstract class ResRecvStatus implements RustOpaqueInterface {
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Server>>
 abstract class Server implements RustOpaqueInterface {
-  static Future<(Server, String)> bind({required int port}) =>
+  static Future<(Server, String, String)> bind({required int port}) =>
       RustLib.instance.api.crateApiBridgeServerBind(port: port);
 
   Stream<(ResConnection, SystemInfo)> run();

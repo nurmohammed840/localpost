@@ -109,7 +109,9 @@ abstract class RustLibApi extends BaseApi {
     required ResRecvStatus that,
   });
 
-  Future<(Server, String)> crateApiBridgeServerBind({required int port});
+  Future<(Server, String, String)> crateApiBridgeServerBind({
+    required int port,
+  });
 
   Stream<(ResConnection, SystemInfo)> crateApiBridgeServerRun({
     required Server that,
@@ -445,7 +447,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<(Server, String)> crateApiBridgeServerBind({required int port}) {
+  Future<(Server, String, String)> crateApiBridgeServerBind({
+    required int port,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -460,7 +464,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData:
-              sse_decode_record_auto_owned_rust_opaque_flutter_rust_bridgefor_generated_rust_auto_opaque_inner_server_string,
+              sse_decode_record_auto_owned_rust_opaque_flutter_rust_bridgefor_generated_rust_auto_opaque_inner_server_string_string,
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiBridgeServerBindConstMeta,
@@ -816,20 +820,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (Server, String)
-  dco_decode_record_auto_owned_rust_opaque_flutter_rust_bridgefor_generated_rust_auto_opaque_inner_server_string(
+  (Server, String, String)
+  dco_decode_record_auto_owned_rust_opaque_flutter_rust_bridgefor_generated_rust_auto_opaque_inner_server_string_string(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2) {
-      throw Exception('Expected 2 elements, got ${arr.length}');
+    if (arr.length != 3) {
+      throw Exception('Expected 3 elements, got ${arr.length}');
     }
     return (
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerServer(
         arr[0],
       ),
       dco_decode_String(arr[1]),
+      dco_decode_String(arr[2]),
     );
   }
 
@@ -1178,8 +1183,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (Server, String)
-  sse_decode_record_auto_owned_rust_opaque_flutter_rust_bridgefor_generated_rust_auto_opaque_inner_server_string(
+  (Server, String, String)
+  sse_decode_record_auto_owned_rust_opaque_flutter_rust_bridgefor_generated_rust_auto_opaque_inner_server_string_string(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1188,7 +1193,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           deserializer,
         );
     final var_field1 = sse_decode_String(deserializer);
-    return (var_field0, var_field1);
+    final var_field2 = sse_decode_String(deserializer);
+    return (var_field0, var_field1, var_field2);
   }
 
   @protected
@@ -1567,8 +1573,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
-  sse_encode_record_auto_owned_rust_opaque_flutter_rust_bridgefor_generated_rust_auto_opaque_inner_server_string(
-    (Server, String) self,
+  sse_encode_record_auto_owned_rust_opaque_flutter_rust_bridgefor_generated_rust_auto_opaque_inner_server_string_string(
+    (Server, String, String) self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1577,6 +1583,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       serializer,
     );
     sse_encode_String(self.$2, serializer);
+    sse_encode_String(self.$3, serializer);
   }
 
   @protected

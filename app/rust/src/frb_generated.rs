@@ -756,12 +756,13 @@ impl SseDecode for (ResEndpoint, crate::api::bridge::SystemInfo) {
     }
 }
 
-impl SseDecode for (Server, String) {
+impl SseDecode for (Server, String, String) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_field0 = <Server>::sse_decode(deserializer);
         let mut var_field1 = <String>::sse_decode(deserializer);
-        return (var_field0, var_field1);
+        let mut var_field2 = <String>::sse_decode(deserializer);
+        return (var_field0, var_field1, var_field2);
     }
 }
 
@@ -1231,11 +1232,12 @@ impl SseEncode for (ResEndpoint, crate::api::bridge::SystemInfo) {
     }
 }
 
-impl SseEncode for (Server, String) {
+impl SseEncode for (Server, String, String) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Server>::sse_encode(self.0, serializer);
         <String>::sse_encode(self.1, serializer);
+        <String>::sse_encode(self.2, serializer);
     }
 }
 
