@@ -128,7 +128,7 @@ where
                 frames.push((self.bitset.set(frame.no())?, frame));
             }
 
-            status.inc_total_recv_count(frames.len() as u32);
+            status.inc_total_count(frames.len() as u32);
 
             for (is_already_set, frame) in frames {
                 self.maybe_send_regular_ack(&frame).await?;
