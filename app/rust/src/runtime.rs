@@ -12,6 +12,10 @@ static RT: LazyLock<Arc<nio::RuntimeContext>> = LazyLock::new(|| {
         .context()
 });
 
+pub fn init_async_runtime() {
+    LazyLock::force(&RT);
+}
+
 pub fn block_on<F, Fut>(future: F) -> Fut::Output
 where
     F: FnOnce() -> Fut + Send,
@@ -30,6 +34,10 @@ where
     RT.spawn_pinned_at(0, future)
 }
 
-pub fn init_async_runtime() {
-    LazyLock::force(&RT);
+pub fn spawn_blocking<F, R>(f: F) -> nio::JoinHandle<R>
+where
+    F: FnOnce() -> R + Send + 'static,
+    R: Send + 'static,
+{
+    nio::spawn_blocking(f)
 }

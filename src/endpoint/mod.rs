@@ -13,6 +13,7 @@ use anyhow::{Result, bail};
 use lipi::{Decode, Encode};
 use nio::net::{TcpListener, TcpStream};
 use std::{
+    cell::RefCell,
     fs::File,
     io::{Seek, Write},
     net::{SocketAddr, ToSocketAddrs},
@@ -103,7 +104,7 @@ impl Endpoint {
             .await?
             .map(|stream| FileRequest {
                 stream,
-                info: None,
+                info: RefCell::new(None),
                 local_addr: self.local_addr,
                 peer_addr: self.peer_addr,
                 mode: self.mode,
@@ -113,7 +114,7 @@ impl Endpoint {
     }
 
     pub async fn send_file(&mut self, path: PathBuf, frame_size: u16) -> Result<()> {
-        let mut stream = self.endpoint.create_stream().await?;
+        let stream = self.endpoint.create_stream().await?;
 
         let (reader, mut file_info) =
             nio::spawn_blocking(move || FileReader::open(path, frame_size)).await??;
@@ -147,7 +148,7 @@ impl Endpoint {
 }
 
 pub struct FileRequest {
-    info: Option<FileInfo>,
+    info: RefCell<Option<FileInfo>>,
     stream: mux::Stream,
     local_addr: SocketAddr,
     peer_addr: SocketAddr,
@@ -155,17 +156,19 @@ pub struct FileRequest {
 }
 
 impl FileRequest {
-    pub async fn file_info(&mut self) -> Result<&FileInfo> {
-        if self.info.is_none() {
-            let file_info = self.stream.recv().await?;
-            self.info = Some(file_info);
+    pub async fn file_info(&self) -> Result<FileInfo> {
+        let cached = self.info.borrow().clone();
+        if let Some(info) = cached {
+            return Ok(info);
         }
 
-        Ok(self.info.as_ref().unwrap())
+        let info: FileInfo = self.stream.recv().await?;
+        *self.info.borrow_mut() = Some(info.clone());
+        Ok(info)
     }
 
     pub async fn receive(
-        mut self,
+        &self,
         file: impl Write + Seek + Send + 'static,
         status: Arc<RecvStatus>,
     ) -> Result<()> {
@@ -225,7 +228,7 @@ pub async fn run_server() -> Result<()> {
         nio::spawn_local(async move {
             let mut endpoint = conn.handshake().await.unwrap();
 
-            while let Some(mut request) = endpoint.accept_request().await.unwrap() {
+            while let Some(request) = endpoint.accept_request().await.unwrap() {
                 nio::spawn_local(async move {
                     let info = request.file_info().await.unwrap().clone();
                     println!("File Request: {info:?}");

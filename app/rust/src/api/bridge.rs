@@ -1,9 +1,9 @@
-use std::{cell::RefCell, sync::Arc};
+use std::{fs::File, sync::Arc};
 
 use crate::{
     frb_generated::StreamSink,
     resource::Res,
-    runtime::{block_on, init_async_runtime},
+    runtime::{block_on, init_async_runtime, spawn_blocking},
 };
 use deps::anyhow::Result;
 use derive_more::From;
@@ -11,9 +11,35 @@ use flutter_rust_bridge::frb;
 use localpost::{
     deps,
     endpoint::{Endpoint, FileRequest},
+    protocol::{FileInfo, TransferID},
+    receiver::RecvStatus,
 };
 
 pub use localpost::protocol::SystemInfo;
+
+#[frb(mirror(SystemInfo))]
+pub struct _SystemInfo {
+    pub os_name: String,
+    pub os_version: String,
+    pub os_type: String,
+    pub architecture: String,
+    pub hostname: String,
+}
+
+#[frb(mirror(TransferID))]
+pub struct _TransferID {
+    pub udp_port: u16,
+    pub id: Option<u32>,
+}
+
+#[frb(mirror(FileInfo))]
+pub struct _FileInfo {
+    pub tid: TransferID,
+    pub name: Vec<u8>,
+    pub size: u64,
+    pub frame_size: u16,
+    pub last_modified: u64,
+}
 
 #[frb(init)]
 pub fn init_app() {
@@ -25,15 +51,6 @@ pub fn get_local_ip() -> String {
         .ok()
         .map(|ip| ip.to_string())
         .unwrap_or_default()
-}
-
-#[frb(mirror(SystemInfo))]
-pub struct _SystemInfo {
-    pub os_name: String,
-    pub os_version: String,
-    pub os_type: String,
-    pub architecture: String,
-    pub hostname: String,
 }
 
 #[frb(opaque)]
@@ -68,6 +85,21 @@ impl ResEndpoint {
 }
 
 #[frb(opaque)]
+pub struct ResRecvStatus {
+    inner: Arc<RecvStatus>,
+}
+
+impl ResRecvStatus {
+    #[frb(sync)]
+    pub fn new() -> Self {
+        Self {
+            inner: RecvStatus::new(),
+        }
+    }
+    
+}
+
+#[frb(opaque)]
 pub struct ResFile {
     req: Arc<Res<FileRequest>>,
 }
@@ -81,53 +113,24 @@ impl From<FileRequest> for ResFile {
 }
 
 impl ResFile {
-    pub fn file_info(&self) -> Result<()> {
+    pub fn file_info(&self) -> Result<FileInfo> {
         let req = self.req.clone();
+        block_on(async move || req.file_info().await)
+    }
+
+    pub fn receive(self, path: String, status: ResRecvStatus) -> Result<()> {
         block_on(async move || {
-            // ...
+            let file = spawn_blocking(|| {
+                File::options()
+                    .truncate(false)
+                    .create(true)
+                    .write(true)
+                    .open(path)
+            })
+            .await??;
+
+            self.req.receive(file, status.inner.clone()).await.unwrap();
             Ok(())
         })
     }
 }
-
-// pub fn run_server(port: u16, sink: StreamSink<(EndpointID, SystemInfo)>) {
-//     block_on(async move || {
-//         if let Err(err) = _run_server(port, &sink).await {
-//             let _ = sink.add_error(err);
-//         }
-//     });
-// }
-
-// async fn _run_server(port: u16, sink: &StreamSink<(EndpointID, SystemInfo)>) -> Result<()> {
-//     let mut listener = Listener::new(port).await?;
-//     loop {
-//         let (conn, _info) = match listener.accept().await {
-//             Ok(conn) => conn,
-//             Err(error) => {
-//                 if sink.add_error(error).is_err() {
-//                     break Ok(());
-//                 }
-//                 continue;
-//             }
-//         };
-
-//         nio::spawn_local(async move {
-//             let mut _endpoint = conn.handshake().await.unwrap();
-//             // how to get `sink` here?
-//         });
-//     }
-// }
-
-// async fn handle_endpoint(mut endpoint: Endpoint, sink: StreamSink<FileEvent>) -> Result<()> {
-//     while let Some(mut request) = endpoint.accept_request().await? {
-//         nio::spawn_local(async {
-//             let info = request.file_info().await;
-//             handle_file(request).await;
-//         });
-//     }
-//     Ok(())
-// }
-
-// async fn handle_file(mut request: FileRequest) -> Result<()> {
-//     Ok(())
-// }
