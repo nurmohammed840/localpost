@@ -6,10 +6,17 @@
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `total_and_recv_count`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`
 
-Future<String> getLocalIp() => RustLib.instance.api.crateApiBridgeGetLocalIp();
+String getLocalIp() => RustLib.instance.api.crateApiBridgeGetLocalIp();
+
+Stream<(ResConnection, SystemInfo)> runServer({required int port}) =>
+    RustLib.instance.api.crateApiBridgeRunServer(port: port);
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResConnection>>
+abstract class ResConnection implements RustOpaqueInterface {
+  Future<(ResEndpoint, String)> handshake();
+}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResEndpoint>>
 abstract class ResEndpoint implements RustOpaqueInterface {
@@ -30,6 +37,8 @@ abstract class ResFile implements RustOpaqueInterface {
 abstract class ResRecvStatus implements RustOpaqueInterface {
   factory ResRecvStatus() =>
       RustLib.instance.api.crateApiBridgeResRecvStatusNew();
+
+  (int, int) totalAndRecvCount();
 }
 
 class FileInfo {

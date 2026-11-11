@@ -33,7 +33,7 @@ pub fn create_udp_socket(local_addr: SocketAddr) -> Result<UdpSocket> {
 }
 
 pub struct Listener {
-    tcp: TcpListener,
+    pub tcp: TcpListener,
 }
 
 impl Listener {
@@ -144,6 +144,10 @@ impl Endpoint {
                 task.await?
             }
         }
+    }
+
+    pub fn peer_addr(&self) -> SocketAddr {
+        self.peer_addr
     }
 }
 

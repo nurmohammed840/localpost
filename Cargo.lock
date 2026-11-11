@@ -610,7 +610,7 @@ dependencies = [
 [[package]]
 name = "mpmc-channel"
 version = "0.0.0"
-source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
+source = "git+https://github.com/nurmohammed840/nio#06d20c3826ea3a8611ef9db4e7ad8ccdd1b717e9"
 
 [[package]]
 name = "neli"
@@ -644,8 +644,8 @@ dependencies = [
 
 [[package]]
 name = "nio"
-version = "0.2.0-rc.2"
-source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
+version = "0.2.0-rc.3"
+source = "git+https://github.com/nurmohammed840/nio#06d20c3826ea3a8611ef9db4e7ad8ccdd1b717e9"
 dependencies = [
  "crossbeam-queue",
  "crossbeam-utils",
@@ -661,12 +661,12 @@ dependencies = [
 [[package]]
 name = "nio-future"
 version = "0.0.1"
-source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
+source = "git+https://github.com/nurmohammed840/nio#06d20c3826ea3a8611ef9db4e7ad8ccdd1b717e9"
 
 [[package]]
 name = "nio-macros"
 version = "0.3.0"
-source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
+source = "git+https://github.com/nurmohammed840/nio#06d20c3826ea3a8611ef9db4e7ad8ccdd1b717e9"
 dependencies = [
  "quote2",
  "syn 3.0.9",
@@ -675,17 +675,17 @@ dependencies = [
 [[package]]
 name = "nio-metrics"
 version = "0.0.0"
-source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
+source = "git+https://github.com/nurmohammed840/nio#06d20c3826ea3a8611ef9db4e7ad8ccdd1b717e9"
 
 [[package]]
 name = "nio-task"
 version = "0.2.0"
-source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
+source = "git+https://github.com/nurmohammed840/nio#06d20c3826ea3a8611ef9db4e7ad8ccdd1b717e9"
 
 [[package]]
 name = "nio-threadpool"
 version = "0.2.0"
-source = "git+https://github.com/nurmohammed840/nio#c7e9ae311778baa6750074f97ebc0c7fa36b185c"
+source = "git+https://github.com/nurmohammed840/nio#06d20c3826ea3a8611ef9db4e7ad8ccdd1b717e9"
 dependencies = [
  "mpmc-channel",
 ]

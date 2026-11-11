@@ -10,11 +10,11 @@ use derive_more::From;
 use flutter_rust_bridge::frb;
 use localpost::{
     deps,
-    endpoint::{Endpoint, FileRequest},
+    endpoint::{Connection, Endpoint, FileRequest, Listener},
     receiver::RecvStatus,
 };
 
-pub use localpost::protocol::{SystemInfo, FileInfo, TransferID};
+pub use localpost::protocol::{FileInfo, SystemInfo, TransferID};
 
 #[frb(mirror(SystemInfo))]
 pub struct _SystemInfo {
@@ -45,6 +45,7 @@ pub fn init_app() {
     init_async_runtime();
 }
 
+#[frb(sync)]
 pub fn get_local_ip() -> String {
     localpost::local_ip_address::local_ip()
         .ok()
@@ -84,6 +85,40 @@ impl ResEndpoint {
 }
 
 #[frb(opaque)]
+#[derive(From)]
+#[from(Connection)]
+pub struct ResConnection {
+    conn: Res<Connection>,
+}
+
+impl ResConnection {
+    pub fn handshake(self) -> Result<(ResEndpoint, String)> {
+        block_on(async move || {
+            let endpoint = self.conn.take().handshake().await?;
+            let peer_addr = endpoint.peer_addr();
+            Ok((endpoint.into(), peer_addr.to_string()))
+        })
+    }
+}
+
+pub fn run_server(port: u16, sink: StreamSink<(ResConnection, SystemInfo)>) -> Result<()> {
+    block_on(async move || -> Result<()> {
+        let mut listener = Listener::new(port).await?;
+        println!("Server Running on: {}", listener.tcp.local_addr()?);
+
+        loop {
+            let sent = match listener.accept().await {
+                Ok((conn, info)) => sink.add((conn.into(), info)),
+                Err(error) => sink.add_error(error),
+            };
+            if sent.is_err() {
+                break Ok(());
+            }
+        }
+    })
+}
+
+#[frb(opaque)]
 pub struct ResRecvStatus {
     inner: Arc<RecvStatus>,
 }
@@ -97,7 +132,7 @@ impl ResRecvStatus {
     }
 
     #[frb(sync)]
-    fn total_and_recv_count(&self) -> (u32, u32) {
+    pub fn total_and_recv_count(&self) -> (u32, u32) {
         self.inner.total_and_recv_count()
     }
 }
