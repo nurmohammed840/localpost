@@ -1,4 +1,10 @@
-use std::{cell::RefCell, future::poll_fn};
+use std::{
+    cell::RefCell,
+    future::poll_fn,
+    io,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use futures::io::{AsyncRead, AsyncWrite};
 use yamux::{Config, Connection, Mode, Result};
@@ -46,19 +52,53 @@ where
 }
 
 pub struct Stream {
-    pub io: yamux::Stream,
+    pub io: RefCell<yamux::Stream>,
 }
 
 impl Stream {
     pub fn new(io: yamux::Stream) -> Self {
-        Self { io }
+        Self {
+            io: RefCell::new(io),
+        }
     }
 
-    pub async fn recv<T: lipi::DecodeOwned>(&mut self) -> anyhow::Result<T> {
-        FrameDecoder::new(&mut self.io).decode().await
+    pub async fn recv<T: lipi::DecodeOwned>(&self) -> anyhow::Result<T> {
+        FrameDecoder::new(self).decode().await
     }
 
-    pub async fn send<T: lipi::Encode>(&mut self, data: T) -> anyhow::Result<()> {
-        FrameEncoder::new(&mut self.io).encode(data).await
+    pub async fn send<T: lipi::Encode>(&self, data: T) -> anyhow::Result<()> {
+        FrameEncoder::new(self).encode(data).await
+    }
+}
+
+impl AsyncRead for &Stream {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        let mut io = self.io.borrow_mut();
+        Pin::new(&mut *io).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for &Stream {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        let mut io = self.io.borrow_mut();
+        Pin::new(&mut *io).poll_write(cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        let mut io = self.io.borrow_mut();
+        Pin::new(&mut *io).poll_flush(cx)
+    }
+
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        let mut io = self.io.borrow_mut();
+        Pin::new(&mut *io).poll_close(cx)
     }
 }
