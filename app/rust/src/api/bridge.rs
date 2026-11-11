@@ -5,7 +5,7 @@ use crate::{
     resource::Res,
     runtime::{block_on, init_async_runtime, spawn_blocking},
 };
-use deps::anyhow::Result;
+use deps::{anyhow::Result, local_ip_address};
 use flutter_rust_bridge::frb;
 use localpost::{
     deps,
@@ -45,11 +45,9 @@ pub fn init_app() {
 }
 
 #[frb(sync)]
-pub fn get_local_ip() -> String {
-    localpost::local_ip_address::local_ip()
-        .ok()
-        .map(|ip| ip.to_string())
-        .unwrap_or_default()
+pub fn get_local_ip() -> Result<String> {
+    let ip = local_ip_address::local_ip()?;
+    Ok(ip.to_string())
 }
 
 #[frb(opaque)]
@@ -118,22 +116,46 @@ impl ResConnection {
     }
 }
 
-pub fn run_server(port: u16, sink: StreamSink<(ResConnection, SystemInfo)>) -> Result<()> {
-    block_on(async move || -> Result<()> {
-        let mut listener = Listener::new(port).await?;
-        println!("Server Running on: {}", listener.tcp.local_addr()?);
+#[frb(opaque)]
+pub struct Server {
+    listener: Res<Listener>,
+}
 
-        loop {
-            let sent = match listener.accept().await {
+impl From<Listener> for Server {
+    fn from(value: Listener) -> Self {
+        Self {
+            listener: value.into(),
+        }
+    }
+}
+
+impl Server {
+    pub fn bind(port: u16) -> Result<(Server, String)> {
+        block_on(async move || {
+            let ip = local_ip_address::local_ip()?;
+
+            let listener = match Listener::listen((ip, port)).await {
+                Err(_) if port != 0 => Listener::listen((ip, 0)).await,
+                res => res,
+            }?;
+
+            let addr = listener.tcp.local_addr()?;
+            Ok((listener.into(), addr.to_string()))
+        })
+    }
+
+    pub fn run(self, sink: StreamSink<(ResConnection, SystemInfo)>) {
+        block_on(async move || loop {
+            let sent = match self.listener.accept().await {
                 Ok((conn, info)) => sink.add((conn.into(), info)),
                 Err(error) => sink.add_error(error),
             };
 
             if sent.is_err() {
-                break Ok(());
+                break;
             }
-        }
-    })
+        })
+    }
 }
 
 #[frb(opaque)]

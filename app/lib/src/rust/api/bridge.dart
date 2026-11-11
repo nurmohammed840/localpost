@@ -6,12 +6,9 @@
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`
 
 String getLocalIp() => RustLib.instance.api.crateApiBridgeGetLocalIp();
-
-Stream<(ResConnection, SystemInfo)> runServer({required int port}) =>
-    RustLib.instance.api.crateApiBridgeRunServer(port: port);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResConnection>>
 abstract class ResConnection implements RustOpaqueInterface {
@@ -41,6 +38,14 @@ abstract class ResRecvStatus implements RustOpaqueInterface {
       RustLib.instance.api.crateApiBridgeResRecvStatusNew();
 
   (int, int) totalAndRecvCount();
+}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Server>>
+abstract class Server implements RustOpaqueInterface {
+  static Future<(Server, String)> bind({required int port}) =>
+      RustLib.instance.api.crateApiBridgeServerBind(port: port);
+
+  Stream<(ResConnection, SystemInfo)> run();
 }
 
 class FileInfo {

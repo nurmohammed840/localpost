@@ -3,9 +3,8 @@ pub mod deps {
     pub use futures;
     pub use anyhow;
     pub use nio;
+    pub use local_ip_address;
 }
-
-pub use local_ip_address;
 
 pub mod discover;
 pub mod endpoint;

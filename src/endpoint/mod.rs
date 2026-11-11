@@ -47,7 +47,7 @@ impl Listener {
         })
     }
 
-    pub async fn accept(&mut self) -> Result<(Connection, SystemInfo)> {
+    pub async fn accept(&self) -> Result<(Connection, SystemInfo)> {
         let conn = self.tcp.accept().await?;
         let mut stream = conn.connect().await?;
 
