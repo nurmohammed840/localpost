@@ -6,7 +6,6 @@ import 'package:localpost/src/rust/frb_generated.dart';
 
 Future<void> main() async {
   await RustLib.init();
-  // final addr = Server.bind();
   runApp(const MyApp());
 }
 

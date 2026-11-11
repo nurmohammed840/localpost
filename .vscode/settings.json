@@ -15,11 +15,12 @@
         "target": true,
         "**/*.lock": true,
         //
-        "app/flutter_rust_bridge.yaml": true,
-        "app/analysis_options.yaml": true,
-        "app/rust/cargokit.yaml": true,
         "app/.flutter-plugins-dependencies": true,
         "app/.metadata": true,
+        "app/flutter_rust_bridge.yaml": true,
+        "app/analysis_options.yaml": true,
+        "app/rust/src/frb_generated.rs": true,
+        "app/rust/cargokit.yaml": true,
         "app/localpost.iml": true,
         //
         "app/android": true,
@@ -27,7 +28,6 @@
         "app/linux": true,
         "app/rust_builder": true,
         //
-        "app/rust/src/frb_generated.rs": true,
-        // "app/rust/src/lib.rs": true,
+        "app/lib/src": true,
     }
 }

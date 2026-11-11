@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:localpost/widget/appbar.dart';
 
 class TransferScreen extends StatelessWidget {
   const new({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Transfer'),
-        actionsPadding: const .only(right: 10),
-      ),
-    );
+    return Scaffold(appBar: appBar(context, title: const Text('Transfer')));
   }
 }
