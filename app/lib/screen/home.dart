@@ -14,7 +14,7 @@ class HomeScreen extends StatelessWidget {
         if (serverAddr.value == null) {
           return const SizedBox.shrink();
         }
-        return QrCode(info: serverAddr.value!);
+        return Center(child: QrCode(info: serverAddr.value!));
       }),
     );
   }

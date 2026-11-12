@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:localpost/constraints.dart';
 import 'package:localpost/dialog/error_snackbar.dart';
 import 'package:localpost/screen/home.dart';
 import 'package:localpost/screen/transfer.dart';
@@ -10,7 +11,7 @@ Future<void> main() async {
   await RustLib.init();
   runApp(const MyApp());
 
-  await runServer(53371);
+  await runServer(defaultPort);
 }
 
 class MyApp extends StatelessWidget {
