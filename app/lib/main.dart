@@ -25,12 +25,12 @@ class MyApp extends StatelessWidget {
     theme: .light(),
     darkTheme: .dark(),
     title: 'Local Post',
-    home: HomePage(),
+    home: MainPage(),
   );
 }
 
-class HomePage extends StatelessWidget {
-  HomePage({super.key});
+class MainPage extends StatelessWidget {
+  MainPage({super.key});
 
   final selectedNav = CreateState(0);
 
