@@ -7,6 +7,7 @@ Future<(String, int)?> promptIPAddr(
   String ipAddr = '192.168.0.1',
   int port = defaultPort,
 }) async {
+  ipAddr = ipAddr.substring(0, ipAddr.length - 1);
   final ipController = TextEditingController(text: ipAddr);
   final portController = TextEditingController(text: '$port');
 

@@ -39,16 +39,16 @@ class QrCode extends StatelessWidget {
               spacing: 12,
               children: [
                 FilledButton.icon(
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('Scan QR'),
-                  onPressed: scanQR,
-                ),
-                OutlinedButton.icon(
                   icon: const Icon(Icons.link),
                   label: const Text('Connect'),
                   onPressed: () async {
                     await connect(context, info.addr);
                   },
+                ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Scan QR'),
+                  onPressed: scanQR,
                 ),
               ],
             ),
