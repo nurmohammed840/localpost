@@ -7,19 +7,45 @@ class QrCode extends StatelessWidget {
 
   final ServerAddr info;
 
+  void connect() {}
+
+  void scanQR() {}
+
   @override
   Widget build(BuildContext context) => Center(
-    child: Card(
-      margin: const .all(16),
-      child: Padding(
-        padding: const .all(20),
-        child: Column(
-          mainAxisSize: .min,
-          children: [
-            SvgPicture.string(info.qr, width: 350, height: 350),
-            const SizedBox(height: 12),
-            SelectableText(info.addr, textAlign: .center),
-          ],
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 700, maxHeight: 800),
+      child: Card(
+        elevation: 0,
+        margin: const .all(16),
+        child: Padding(
+          padding: const .all(20),
+          child: Column(
+            spacing: 12,
+            mainAxisSize: .min,
+            children: [
+              Expanded(child: SvgPicture.string(info.qr)),
+
+              SelectableText(info.addr, textAlign: .center),
+
+              Column(
+                crossAxisAlignment: .stretch,
+                spacing: 12,
+                children: [
+                  FilledButton.icon(
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Scan QR'),
+                    onPressed: scanQR,
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.link),
+                    label: const Text('Connect'),
+                    onPressed: connect,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     ),

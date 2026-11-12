@@ -139,8 +139,6 @@ impl Server {
             let svg = QrCode::new(addr.as_bytes())?
                 .render::<svg::Color>()
                 .quiet_zone(true)
-                .dark_color(svg::Color("#000000"))
-                .light_color(svg::Color("#ffffff"))
                 .build();
 
             Ok((listener.into(), addr, svg))
