@@ -46,74 +46,6 @@ pub fn init_app() {
 }
 
 #[frb(opaque)]
-pub struct ResEndpoint {
-    endpoint: Arc<Res<Endpoint>>,
-}
-
-impl From<Endpoint> for ResEndpoint {
-    fn from(value: Endpoint) -> Self {
-        Self {
-            endpoint: Arc::new(value.into()),
-        }
-    }
-}
-
-impl ResEndpoint {
-    pub fn open(addr: String, timeout_ms: u64) -> Result<(ResEndpoint, SystemInfo)> {
-        block_on(async move || {
-            let (endpoint, info) =
-                Endpoint::open_with_timeout(addr, Duration::from_millis(timeout_ms)).await?;
-
-            Ok((endpoint.into(), info))
-        })
-    }
-
-    pub fn send_file(&self, path: String, frame_size: u16) -> Result<()> {
-        let endpoint = self.endpoint.clone();
-        let path = PathBuf::from(path);
-
-        block_on(async move || endpoint.send_file(path, frame_size).await)
-    }
-
-    pub fn accept_requests(&self, sink: StreamSink<ResFile>) {
-        let endpoint = self.endpoint.clone();
-
-        block_on(async move || {
-            while let Some(result) = endpoint.accept_request().await.transpose() {
-                let sent = match result {
-                    Ok(request) => sink.add(request.into()),
-                    Err(error) => sink.add_error(error),
-                };
-                if sent.is_err() {
-                    break;
-                }
-            }
-        })
-    }
-}
-
-#[frb(opaque)]
-pub struct ResConnection {
-    conn: Res<Connection>,
-}
-
-impl From<Connection> for ResConnection {
-    fn from(value: Connection) -> Self {
-        Self { conn: value.into() }
-    }
-}
-
-impl ResConnection {
-    pub fn handshake(self) -> Result<(ResEndpoint, String)> {
-        block_on(async move || {
-            let endpoint = self.conn.take().handshake().await?;
-            let peer_addr = endpoint.peer_addr();
-            Ok((endpoint.into(), peer_addr.to_string()))
-        })
-    }
-}
-
-#[frb(opaque)]
 pub struct Server {
     listener: Res<Listener>,
 }
@@ -162,21 +94,70 @@ impl Server {
 }
 
 #[frb(opaque)]
-pub struct ResRecvStatus {
-    inner: Arc<RecvStatus>,
+pub struct ResConnection {
+    conn: Res<Connection>,
 }
 
-impl ResRecvStatus {
-    #[frb(sync)]
-    pub fn new() -> Self {
+impl From<Connection> for ResConnection {
+    fn from(value: Connection) -> Self {
+        Self { conn: value.into() }
+    }
+}
+
+impl ResConnection {
+    pub fn handshake(self) -> Result<(ResEndpoint, String)> {
+        block_on(async move || {
+            let endpoint = self.conn.take().handshake().await?;
+            let peer_addr = endpoint.peer_addr();
+            Ok((endpoint.into(), peer_addr.to_string()))
+        })
+    }
+}
+
+#[frb(opaque)]
+pub struct ResEndpoint {
+    endpoint: Arc<Res<Endpoint>>,
+}
+
+impl From<Endpoint> for ResEndpoint {
+    fn from(value: Endpoint) -> Self {
         Self {
-            inner: RecvStatus::new(),
+            endpoint: Arc::new(value.into()),
         }
     }
+}
 
-    #[frb(sync)]
-    pub fn total_and_recv_count(&self) -> (u32, u32) {
-        self.inner.total_and_recv_count()
+impl ResEndpoint {
+    pub fn open(addr: String, timeout_ms: u64) -> Result<(ResEndpoint, SystemInfo)> {
+        block_on(async move || {
+            let (endpoint, info) =
+                Endpoint::open_with_timeout(addr, Duration::from_millis(timeout_ms)).await?;
+
+            Ok((endpoint.into(), info))
+        })
+    }
+
+    pub fn send_file(&self, path: String, frame_size: u16) -> Result<()> {
+        let endpoint = self.endpoint.clone();
+        let path = PathBuf::from(path);
+
+        block_on(async move || endpoint.send_file(path, frame_size).await)
+    }
+
+    pub fn accept_requests(&self, sink: StreamSink<ResFile>) {
+        let endpoint = self.endpoint.clone();
+
+        block_on(async move || {
+            while let Some(result) = endpoint.accept_request().await.transpose() {
+                let sent = match result {
+                    Ok(request) => sink.add(request.into()),
+                    Err(error) => sink.add_error(error),
+                };
+                if sent.is_err() {
+                    break;
+                }
+            }
+        })
     }
 }
 
@@ -212,5 +193,24 @@ impl ResFile {
 
             self.req.receive(file, status.inner.clone()).await
         })
+    }
+}
+
+#[frb(opaque)]
+pub struct ResRecvStatus {
+    inner: Arc<RecvStatus>,
+}
+
+impl ResRecvStatus {
+    #[frb(sync)]
+    pub fn new() -> Self {
+        Self {
+            inner: RecvStatus::new(),
+        }
+    }
+
+    #[frb(sync)]
+    pub fn total_and_recv_count(&self) -> (u32, u32) {
+        self.inner.total_and_recv_count()
     }
 }

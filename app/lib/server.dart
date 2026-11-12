@@ -9,6 +9,7 @@ class ServerAddr {
 }
 
 CreateState<ServerAddr?> serverAddr = CreateState(null);
+CreateState<List<int>> connections = CreateState([]);
 
 Future runServer(int port) async {
   try {
@@ -16,6 +17,13 @@ Future runServer(int port) async {
     serverAddr.set(ServerAddr(addr: addr, qr: qr));
 
     server.run().listen(
+      cancelOnError: false,
+      onError: (error, _) {
+        showErrorSnackBar(error);
+      },
+      onDone: () {
+        showErrorSnackBar('Server stopped');
+      },
       (event) async {
         final (connection, systemInfo) = event;
 
@@ -27,12 +35,6 @@ Future runServer(int port) async {
         } catch (error) {
           showErrorSnackBar(error);
         }
-      },
-      onError: (error, _) {
-        showErrorSnackBar(error);
-      },
-      onDone: () {
-        showErrorSnackBar('Server stopped');
       },
     );
   } catch (error) {
