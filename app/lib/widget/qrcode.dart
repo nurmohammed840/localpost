@@ -9,7 +9,11 @@ class QrCode extends StatelessWidget {
   final ServerAddr info;
 
   Future connect(BuildContext context, String ipAddr) async {
-    await promptIPAddr(context, ipAddr: ipAddr.split(':')[0]);
+    final addr = await promptIPAddr(context, ipAddr: ipAddr.split(':')[0]);
+    if (addr == null) {
+      return;
+    }
+    await openConnection(addr.$1, addr.$2);
   }
 
   void scanQR() {}

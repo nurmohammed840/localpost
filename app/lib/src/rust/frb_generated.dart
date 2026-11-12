@@ -87,6 +87,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<(ResEndpoint, SystemInfo)> crateApiBridgeResEndpointOpen({
     required String addr,
+    required BigInt timeoutMs,
   });
 
   Future<void> crateApiBridgeResEndpointSendFile({
@@ -250,12 +251,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<(ResEndpoint, SystemInfo)> crateApiBridgeResEndpointOpen({
     required String addr,
+    required BigInt timeoutMs,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(addr, serializer);
+          sse_encode_u_64(timeoutMs, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -269,14 +272,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiBridgeResEndpointOpenConstMeta,
-        argValues: [addr],
+        argValues: [addr, timeoutMs],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiBridgeResEndpointOpenConstMeta =>
-      const TaskConstMeta(debugName: "ResEndpoint_open", argNames: ["addr"]);
+      const TaskConstMeta(
+        debugName: "ResEndpoint_open",
+        argNames: ["addr", "timeoutMs"],
+      );
 
   @override
   Future<void> crateApiBridgeResEndpointSendFile({

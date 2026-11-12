@@ -1,4 +1,4 @@
-use std::{fs::File, path::PathBuf, sync::Arc};
+use std::{fs::File, path::PathBuf, sync::Arc, time::Duration};
 
 use crate::{
     frb_generated::StreamSink,
@@ -59,9 +59,11 @@ impl From<Endpoint> for ResEndpoint {
 }
 
 impl ResEndpoint {
-    pub fn open(addr: String) -> Result<(ResEndpoint, SystemInfo)> {
-        block_on(async || {
-            let (endpoint, info) = Endpoint::open(addr).await?;
+    pub fn open(addr: String, timeout_ms: u64) -> Result<(ResEndpoint, SystemInfo)> {
+        block_on(async move || {
+            let (endpoint, info) =
+                Endpoint::open_with_timeout(addr, Duration::from_millis(timeout_ms)).await?;
+
             Ok((endpoint.into(), info))
         })
     }

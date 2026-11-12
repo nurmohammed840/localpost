@@ -14,6 +14,7 @@ use lipi::{Decode, Encode};
 use nio::net::{TcpListener, TcpStream};
 use std::{
     cell::RefCell,
+    fmt::Debug,
     io::{Seek, Write},
     net::{SocketAddr, ToSocketAddrs},
     path::PathBuf,
@@ -89,6 +90,16 @@ impl Endpoint {
             },
             hello.info,
         ))
+    }
+
+    pub async fn open_with_timeout(
+        addr: impl ToSocketAddrs + Debug,
+        duration: Duration,
+    ) -> Result<(Endpoint, SystemInfo)> {
+        match nio::timeout(duration, Self::open(&addr)).await {
+            None => bail!("Connection to {addr:?} timed out after {duration:?}"),
+            Some(conn) => conn,
+        }
     }
 
     pub async fn accept_request(&self) -> Result<Option<FileRequest>> {

@@ -164,11 +164,13 @@ fn wire__crate__api__bridge__ResEndpoint_open_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_addr = <String>::sse_decode(&mut deserializer);
+            let api_timeout_ms = <u64>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::bridge::ResEndpoint::open(api_addr)?;
+                        let output_ok =
+                            crate::api::bridge::ResEndpoint::open(api_addr, api_timeout_ms)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )

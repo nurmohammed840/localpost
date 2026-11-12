@@ -20,3 +20,15 @@ Future runServer(int port) async {
     showErrorSnackBar(error);
   }
 }
+
+Future openConnection(String ip, int port) async {
+  try {
+    final (endpoint, info) = await ResEndpoint.open(
+      addr: "$ip:$port",
+      timeoutMs: BigInt.from(3 * 1000),
+    );
+    print(info);
+  } catch (error) {
+    showErrorSnackBar(error);
+  }
+}
