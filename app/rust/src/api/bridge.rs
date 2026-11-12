@@ -50,14 +50,6 @@ pub struct Server {
     listener: Res<Listener>,
 }
 
-impl From<Listener> for Server {
-    fn from(value: Listener) -> Self {
-        Self {
-            listener: value.into(),
-        }
-    }
-}
-
 impl Server {
     pub fn bind(port: u16) -> Result<(Server, String, String)> {
         block_on(async move || {
@@ -98,12 +90,6 @@ pub struct ResConnection {
     conn: Res<Connection>,
 }
 
-impl From<Connection> for ResConnection {
-    fn from(value: Connection) -> Self {
-        Self { conn: value.into() }
-    }
-}
-
 impl ResConnection {
     pub fn handshake(self) -> Result<(ResEndpoint, String)> {
         block_on(async move || {
@@ -117,14 +103,6 @@ impl ResConnection {
 #[frb(opaque)]
 pub struct ResEndpoint {
     endpoint: Arc<Res<Endpoint>>,
-}
-
-impl From<Endpoint> for ResEndpoint {
-    fn from(value: Endpoint) -> Self {
-        Self {
-            endpoint: Arc::new(value.into()),
-        }
-    }
 }
 
 impl ResEndpoint {
@@ -166,14 +144,6 @@ pub struct ResFile {
     req: Arc<Res<FileRequest>>,
 }
 
-impl From<FileRequest> for ResFile {
-    fn from(req: FileRequest) -> Self {
-        Self {
-            req: Arc::new(Res::from(req)),
-        }
-    }
-}
-
 impl ResFile {
     pub fn file_info(&self) -> Result<FileInfo> {
         let req = self.req.clone();
@@ -212,5 +182,37 @@ impl ResRecvStatus {
     #[frb(sync)]
     pub fn total_and_recv_count(&self) -> (u32, u32) {
         self.inner.total_and_recv_count()
+    }
+}
+
+// ----
+
+impl From<Listener> for Server {
+    fn from(value: Listener) -> Self {
+        Self {
+            listener: value.into(),
+        }
+    }
+}
+
+impl From<Connection> for ResConnection {
+    fn from(value: Connection) -> Self {
+        Self { conn: value.into() }
+    }
+}
+
+impl From<Endpoint> for ResEndpoint {
+    fn from(value: Endpoint) -> Self {
+        Self {
+            endpoint: Arc::new(value.into()),
+        }
+    }
+}
+
+impl From<FileRequest> for ResFile {
+    fn from(req: FileRequest) -> Self {
+        Self {
+            req: Arc::new(Res::from(req)),
+        }
     }
 }
