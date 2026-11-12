@@ -15,7 +15,26 @@ Future runServer(int port) async {
     final (server, addr, qr) = await Server.bind(port: port);
     serverAddr.set(ServerAddr(addr: addr, qr: qr));
 
-    final _ = server.run();
+    server.run().listen(
+      (event) async {
+        final (connection, systemInfo) = event;
+
+        print(systemInfo);
+
+        try {
+          final (endpoint, addr) = await connection.handshake();
+          print(addr);
+        } catch (error) {
+          showErrorSnackBar(error);
+        }
+      },
+      onError: (error, _) {
+        showErrorSnackBar(error);
+      },
+      onDone: () {
+        showErrorSnackBar('Server stopped');
+      },
+    );
   } catch (error) {
     showErrorSnackBar(error);
   }
