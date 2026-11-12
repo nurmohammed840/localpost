@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:localpost/server.dart';
+import 'package:localpost/api.dart';
 import 'package:localpost/widget/appbar.dart';
 import 'package:localpost/widget/qrcode.dart';
 

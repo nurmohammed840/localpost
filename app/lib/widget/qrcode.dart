@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:localpost/api.dart';
 import 'package:localpost/dialog/prompt.dart';
-import 'package:localpost/server.dart';
 
 class QrCode extends StatelessWidget {
   const new({super.key, required this.info});
