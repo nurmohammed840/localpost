@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class Scoped extends StatefulWidget {
-  const Scoped({
+class Lifecycle extends StatefulWidget {
+  const Lifecycle({
     super.key,
     required this.builder,
     this.initState,
@@ -9,23 +9,23 @@ class Scoped extends StatefulWidget {
   });
 
   final Widget Function(BuildContext context) builder;
-  final void Function(BuildContext context)? initState;
-  final void Function(BuildContext context)? dispose;
+  final void Function()? initState;
+  final void Function()? dispose;
 
   @override
-  State<Scoped> createState() => _ScopedState();
+  State<Lifecycle> createState() => _LifecycleState();
 }
 
-class _ScopedState extends State<Scoped> {
+class _LifecycleState extends State<Lifecycle> {
   @override
   void initState() {
     super.initState();
-    widget.initState?.call(context);
+    widget.initState?.call();
   }
 
   @override
   void dispose() {
-    widget.dispose?.call(context);
+    widget.dispose?.call();
     super.dispose();
   }
 
