@@ -39,7 +39,8 @@ Future runServer(int port) async {
           connections.update((list) {
             list.add(Connection(addr, endpoint, systemInfo));
           });
-          await acceptRequests(endpoint);
+
+          acceptRequests(endpoint, addr);
         } catch (error) {
           showErrorSnackBar(error);
         }
@@ -60,20 +61,26 @@ Future openConnection(String addr, {int timeoutMs = 3 * 1000}) async {
     connections.update((list) {
       list.add(Connection(addr, endpoint, systemInfo));
     });
-    await acceptRequests(endpoint);
+
+    acceptRequests(endpoint, addr);
   } catch (error) {
     showErrorSnackBar(error);
   }
 }
 
-Future acceptRequests(ResEndpoint endpoint) async {
+void acceptRequests(ResEndpoint endpoint, String addr) {
+  void removeConnection() {
+    connections.update((list) {
+      list.removeWhere((connection) => connection.addr == addr);
+    });
+  }
+
   endpoint.acceptRequests().listen(
+    onDone: removeConnection,
     cancelOnError: true,
     onError: (error, _) {
       showErrorSnackBar(error);
-    },
-    onDone: () {
-      // Closed. Remove Endpoint.
+      removeConnection();
     },
     (fileRequest) async {
       try {
