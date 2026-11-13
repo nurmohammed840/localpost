@@ -56,7 +56,7 @@ class ConnectionCard extends StatelessWidget {
             leading: Icon(getOsIcon(info.osType), size: 40),
             trailing: IconButton(
               tooltip: 'Disconnect',
-              onPressed: connection.endpoint.disconnect,
+              onPressed: connection.disconnect,
               icon: const Icon(Icons.link_off),
               color: scheme.error,
             ),

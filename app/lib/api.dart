@@ -16,7 +16,7 @@ class const Connection(
       });
       await endpoint.disconnect();
     } catch (error) {
-      // ...
+      showErrorSnackBar(error);
     } finally {
       endpoint.dispose();
     }
@@ -59,11 +59,9 @@ Future runServer(int port) async {
         try {
           final (endpoint, addr) = await connection.handshake();
 
-          connections.update((list) {
-            list.add(Connection(addr, endpoint, systemInfo));
-          });
-
-          acceptRequests(endpoint);
+          final conn = Connection(addr, endpoint, systemInfo);
+          connections.update((list) => list.add(conn));
+          acceptRequests(conn);
         } catch (error) {
           showErrorSnackBar(error);
         }
@@ -81,11 +79,9 @@ Future openConnection(String addr, {int timeoutMs = 3 * 1000}) async {
       timeoutMs: BigInt.from(timeoutMs),
     );
 
-    connections.update((list) {
-      list.add(Connection(addr, endpoint, systemInfo));
-    });
-
-    acceptRequests(endpoint);
+    final conn = Connection(addr, endpoint, systemInfo);
+    connections.update((list) => list.add(conn));
+    acceptRequests(conn);
   } catch (error) {
     showErrorSnackBar(error);
   }
@@ -97,8 +93,8 @@ void removeConnection(String addr) {
   });
 }
 
-void acceptRequests(ResEndpoint endpoint) {
-  endpoint.acceptRequests().listen(
+void acceptRequests(Connection endpoint) {
+  endpoint.endpoint.acceptRequests().listen(
     onDone: () => endpoint.disconnect(),
     cancelOnError: true,
     onError: (error, _) {
