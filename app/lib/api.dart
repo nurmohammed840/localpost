@@ -21,10 +21,20 @@ class const Connection(
       endpoint.dispose();
     }
   }
+
+  Future sendFile() async {
+    // endpoint.sendFile(path: "path", frameSize: 1500 - (20 + 8));
+  }
 }
 
-class FileRequest(final FileInfo fileInfo) {
+class FileRequest(final FileInfo fileInfo, final ResFile request) {
   final status = CreateState<ResRecvStatus?>(null);
+
+  Future receive() async {
+    final recvStatus = ResRecvStatus();
+    status.set(recvStatus);
+    // request.receive(path: "path", status: recvStatus);
+  }
 }
 
 CreateState<ServerAddr?> serverAddr = CreateState(null);
@@ -95,11 +105,11 @@ void acceptRequests(ResEndpoint endpoint) {
       showErrorSnackBar(error);
       return endpoint.disconnect();
     },
-    (fileRequest) async {
+    (request) async {
       try {
-        final fileInfo = await fileRequest.fileInfo();
+        final fileInfo = await request.fileInfo();
         fileRequests.update((list) {
-          list.add(FileRequest(fileInfo));
+          list.add(FileRequest(fileInfo, request));
         });
       } catch (error) {
         showErrorSnackBar(error);
