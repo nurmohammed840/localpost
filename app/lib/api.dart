@@ -1,5 +1,5 @@
+import 'package:localpost/core/signal.dart';
 import 'package:localpost/dialog/error_snackbar.dart';
-import 'package:localpost/signal.dart';
 import 'package:localpost/src/rust/api/bridge.dart';
 
 class const ServerAddr({required final String addr, required final String qr});

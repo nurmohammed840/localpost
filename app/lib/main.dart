@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:localpost/api.dart';
 import 'package:localpost/constraints.dart';
+import 'package:localpost/core/signal.dart';
 import 'package:localpost/dialog/error_snackbar.dart';
 import 'package:localpost/screen/home.dart';
 import 'package:localpost/screen/transfer.dart';
-import 'package:localpost/signal.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 
 Future<void> main() async {
