@@ -102,6 +102,11 @@ impl Endpoint {
         }
     }
 
+    pub async fn disconnect(&self) -> Result<()> {
+        self.endpoint.close().await?;
+        Ok(())
+    }
+
     pub async fn accept_request(&self) -> Result<Option<FileRequest>> {
         let req = self
             .endpoint

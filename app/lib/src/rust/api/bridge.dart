@@ -17,6 +17,8 @@ abstract class ResConnection implements RustOpaqueInterface {
 abstract class ResEndpoint implements RustOpaqueInterface {
   Stream<ResFile> acceptRequests();
 
+  Future<void> disconnect();
+
   static Future<(ResEndpoint, SystemInfo)> open({
     required String addr,
     required BigInt timeoutMs,

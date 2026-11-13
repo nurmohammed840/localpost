@@ -8,7 +8,20 @@ class const Connection(
   final String addr,
   final ResEndpoint endpoint,
   final SystemInfo systemInfo,
-);
+) {
+  Future disconnect() async {
+    try {
+      connections.update((list) {
+        list.removeWhere((connection) => connection.addr == addr);
+      });
+      await endpoint.disconnect();
+    } catch (error) {
+      // ...
+    } finally {
+      endpoint.dispose();
+    }
+  }
+}
 
 class FileRequest(final FileInfo fileInfo) {
   final status = CreateState<ResRecvStatus?>(null);
@@ -40,7 +53,7 @@ Future runServer(int port) async {
             list.add(Connection(addr, endpoint, systemInfo));
           });
 
-          acceptRequests(endpoint, addr);
+          acceptRequests(endpoint);
         } catch (error) {
           showErrorSnackBar(error);
         }
@@ -62,25 +75,25 @@ Future openConnection(String addr, {int timeoutMs = 3 * 1000}) async {
       list.add(Connection(addr, endpoint, systemInfo));
     });
 
-    acceptRequests(endpoint, addr);
+    acceptRequests(endpoint);
   } catch (error) {
     showErrorSnackBar(error);
   }
 }
 
-void acceptRequests(ResEndpoint endpoint, String addr) {
-  void removeConnection() {
-    connections.update((list) {
-      list.removeWhere((connection) => connection.addr == addr);
-    });
-  }
+void removeConnection(String addr) {
+  connections.update((list) {
+    list.removeWhere((connection) => connection.addr == addr);
+  });
+}
 
+void acceptRequests(ResEndpoint endpoint) {
   endpoint.acceptRequests().listen(
-    onDone: removeConnection,
+    onDone: () => endpoint.disconnect(),
     cancelOnError: true,
     onError: (error, _) {
       showErrorSnackBar(error);
-      removeConnection();
+      return endpoint.disconnect();
     },
     (fileRequest) async {
       try {

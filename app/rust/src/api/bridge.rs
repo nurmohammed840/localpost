@@ -137,6 +137,11 @@ impl ResEndpoint {
             }
         })
     }
+
+    pub fn disconnect(&self) -> Result<()> {
+        let endpoint = self.endpoint.clone();
+        block_on(async move || endpoint.disconnect().await)
+    }
 }
 
 #[frb(opaque)]
