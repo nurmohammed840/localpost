@@ -51,9 +51,8 @@ Future runServer(int port) async {
   }
 }
 
-Future openConnection(String ip, int port, {int timeoutMs = 3 * 1000}) async {
+Future openConnection(String addr, {int timeoutMs = 3 * 1000}) async {
   try {
-    final addr = "$ip:$port";
     final (endpoint, systemInfo) = await ResEndpoint.open(
       addr: addr,
       timeoutMs: BigInt.from(timeoutMs),
@@ -82,7 +81,6 @@ Future acceptRequests(ResEndpoint endpoint) async {
     (fileRequest) async {
       try {
         final fileInfo = await fileRequest.fileInfo();
-        
       } catch (error) {
         // print(error);
       }

@@ -13,7 +13,7 @@ class QrCode extends StatelessWidget {
     if (addr == null) {
       return;
     }
-    await openConnection(addr.$1, addr.$2);
+    await openConnection(addr);
   }
 
   void scanQR() {}

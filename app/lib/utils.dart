@@ -40,9 +40,9 @@ class PortFormatter extends TextInputFormatter {
   }
 }
 
-(String, int)? parseLocalAddr(String ip, String port) {
+String? parseLocalAddr(String ip, String port) {
   final isV4 = InternetAddress.tryParse(ip)?.type == InternetAddressType.IPv4;
   final p = int.tryParse(port);
-  if (!isV4 || p == null || p < 1 || p > 65535) return null;
-  return (ip, p);
+  if (!isV4 || p == null || p < 1024 || p > 65535) return null;
+  return '$ip:$p';
 }

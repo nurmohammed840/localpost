@@ -3,7 +3,7 @@ import 'package:localpost/constraints.dart';
 import 'package:localpost/core/lifecycle.dart';
 import 'package:localpost/utils.dart';
 
-Future<(String, int)?> promptIPAddr(
+Future<String?> promptIPAddr(
   BuildContext context, {
   String ipAddr = '192.168.0.1',
   int port = defaultPort,
@@ -13,7 +13,7 @@ Future<(String, int)?> promptIPAddr(
   final ipController = TextEditingController(text: ipAddr);
   final portController = TextEditingController(text: '$port');
 
-  return showDialog<(String, int)>(
+  return showDialog(
     context: context,
     builder: (_) => Lifecycle(
       dispose: () {
