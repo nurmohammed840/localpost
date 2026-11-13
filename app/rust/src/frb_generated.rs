@@ -310,13 +310,34 @@ fn wire__crate__api__bridge__ResFile_receive_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <ResFile>::sse_decode(&mut deserializer);
             let api_path = <String>::sse_decode(&mut deserializer);
-            let api_status = <ResRecvStatus>::sse_decode(&mut deserializer);
+            let api_status = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResRecvStatus>,
+            >>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::bridge::ResFile::receive(api_that, api_path, api_status)?;
+                        let mut api_status_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_status,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_status_guard = Some(api_status.lockable_decode_sync_ref()),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_status_guard = api_status_guard.unwrap();
+                        let output_ok = crate::api::bridge::ResFile::receive(
+                            api_that,
+                            api_path,
+                            &*api_status_guard,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )

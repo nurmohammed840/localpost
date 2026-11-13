@@ -2,21 +2,26 @@ import 'package:localpost/core/signal.dart';
 import 'package:localpost/dialog/error_snackbar.dart';
 import 'package:localpost/src/rust/api/bridge.dart';
 
-class const ServerAddr({required final String addr, required final String qr});
+class const ServerAddr(final String addr, final String qr);
 
-class const Connection({
-  required final String addr,
-  required final ResEndpoint endpoint,
-  required final SystemInfo systemInfo,
-});
+class const Connection(
+  final String addr,
+  final ResEndpoint endpoint,
+  final SystemInfo systemInfo,
+);
+
+class FileRequest(final FileInfo fileInfo) {
+  final status = CreateState<ResRecvStatus?>(null);
+}
 
 CreateState<ServerAddr?> serverAddr = CreateState(null);
 CreateState<List<Connection>> connections = CreateState([]);
+CreateState<List<FileRequest>> fileRequests = CreateState([]);
 
 Future runServer(int port) async {
   try {
     final (server, addr, qr) = await Server.bind(port: port);
-    serverAddr.set(ServerAddr(addr: addr, qr: qr));
+    serverAddr.set(ServerAddr(addr, qr));
 
     server.run().listen(
       cancelOnError: false,
@@ -32,13 +37,7 @@ Future runServer(int port) async {
           final (endpoint, addr) = await connection.handshake();
 
           connections.update((list) {
-            list.add(
-              Connection(
-                addr: addr,
-                endpoint: endpoint,
-                systemInfo: systemInfo,
-              ),
-            );
+            list.add(Connection(addr, endpoint, systemInfo));
           });
           await acceptRequests(endpoint);
         } catch (error) {
@@ -59,9 +58,7 @@ Future openConnection(String addr, {int timeoutMs = 3 * 1000}) async {
     );
 
     connections.update((list) {
-      list.add(
-        Connection(addr: addr, endpoint: endpoint, systemInfo: systemInfo),
-      );
+      list.add(Connection(addr, endpoint, systemInfo));
     });
     await acceptRequests(endpoint);
   } catch (error) {
@@ -81,8 +78,11 @@ Future acceptRequests(ResEndpoint endpoint) async {
     (fileRequest) async {
       try {
         final fileInfo = await fileRequest.fileInfo();
+        fileRequests.update((list) {
+          list.add(FileRequest(fileInfo));
+        });
       } catch (error) {
-        // print(error);
+        showErrorSnackBar(error);
       }
     },
   );

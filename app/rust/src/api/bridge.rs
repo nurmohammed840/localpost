@@ -150,7 +150,9 @@ impl ResFile {
         block_on(async move || req.file_info().await)
     }
 
-    pub fn receive(self, path: String, status: ResRecvStatus) -> Result<()> {
+    pub fn receive(self, path: String, status: &ResRecvStatus) -> Result<()> {
+        let status = status.inner.clone();
+
         block_on(async move || {
             let file = spawn_blocking(|| {
                 File::options()
@@ -161,7 +163,7 @@ impl ResFile {
             })
             .await??;
 
-            self.req.receive(file, status.inner.clone()).await
+            self.req.receive(file, status).await
         })
     }
 }
