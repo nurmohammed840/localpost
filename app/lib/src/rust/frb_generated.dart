@@ -90,6 +90,7 @@ abstract class RustLibApi extends BaseApi {
   Future<(ResEndpoint, SystemInfo)> crateApiBridgeResEndpointOpen({
     required String addr,
     required BigInt timeoutMs,
+    required int serverPort,
   });
 
   Future<void> crateApiBridgeResEndpointSendFile({
@@ -290,6 +291,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<(ResEndpoint, SystemInfo)> crateApiBridgeResEndpointOpen({
     required String addr,
     required BigInt timeoutMs,
+    required int serverPort,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -297,6 +299,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(addr, serializer);
           sse_encode_u_64(timeoutMs, serializer);
+          sse_encode_u_16(serverPort, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -310,7 +313,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiBridgeResEndpointOpenConstMeta,
-        argValues: [addr, timeoutMs],
+        argValues: [addr, timeoutMs, serverPort],
         apiImpl: this,
       ),
     );
@@ -319,7 +322,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiBridgeResEndpointOpenConstMeta =>
       const TaskConstMeta(
         debugName: "ResEndpoint_open",
-        argNames: ["addr", "timeoutMs"],
+        argNames: ["addr", "timeoutMs", "serverPort"],
       );
 
   @override
@@ -896,14 +899,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SystemInfo dco_decode_system_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return SystemInfo(
       osName: dco_decode_String(arr[0]),
       osVersion: dco_decode_String(arr[1]),
       osType: dco_decode_String(arr[2]),
       architecture: dco_decode_String(arr[3]),
       hostname: dco_decode_String(arr[4]),
+      port: dco_decode_u_16(arr[5]),
     );
   }
 
@@ -1257,12 +1261,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final var_osType = sse_decode_String(deserializer);
     final var_architecture = sse_decode_String(deserializer);
     final var_hostname = sse_decode_String(deserializer);
+    final var_port = sse_decode_u_16(deserializer);
     return SystemInfo(
       osName: var_osName,
       osVersion: var_osVersion,
       osType: var_osType,
       architecture: var_architecture,
       hostname: var_hostname,
+      port: var_port,
     );
   }
 
@@ -1645,6 +1651,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.osType, serializer);
     sse_encode_String(self.architecture, serializer);
     sse_encode_String(self.hostname, serializer);
+    sse_encode_u_16(self.port, serializer);
   }
 
   @protected

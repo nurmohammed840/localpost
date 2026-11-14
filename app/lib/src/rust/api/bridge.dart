@@ -22,9 +22,11 @@ abstract class ResEndpoint implements RustOpaqueInterface {
   static Future<(ResEndpoint, SystemInfo)> open({
     required String addr,
     required BigInt timeoutMs,
+    required int serverPort,
   }) => RustLib.instance.api.crateApiBridgeResEndpointOpen(
     addr: addr,
     timeoutMs: timeoutMs,
+    serverPort: serverPort,
   );
 
   Future<void> sendFile({required String path, required int frameSize});
@@ -94,12 +96,14 @@ class SystemInfo {
     required this.osType,
     required this.architecture,
     required this.hostname,
+    required this.port,
   });
   final String osName;
   final String osVersion;
   final String osType;
   final String architecture;
   final String hostname;
+  final int port;
 
   @override
   int get hashCode =>
@@ -107,7 +111,8 @@ class SystemInfo {
       osVersion.hashCode ^
       osType.hashCode ^
       architecture.hashCode ^
-      hostname.hashCode;
+      hostname.hashCode ^
+      port.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -118,7 +123,8 @@ class SystemInfo {
           osVersion == other.osVersion &&
           osType == other.osType &&
           architecture == other.architecture &&
-          hostname == other.hostname;
+          hostname == other.hostname &&
+          port == other.port;
 }
 
 class TransferID {

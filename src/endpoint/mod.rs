@@ -57,9 +57,10 @@ pub struct Connection {
 
 impl Connection {
     pub async fn handshake(mut self) -> Result<Endpoint> {
-        handshake::send_hello(&mut self.stream).await?;
+        let local_addr = self.stream.local_addr()?;
+        handshake::send_hello(&mut self.stream, local_addr.port()).await?;
         Ok(Endpoint {
-            local_addr: self.stream.local_addr()?,
+            local_addr,
             peer_addr: self.stream.peer_addr()?,
             endpoint: MuxEndpoint::server(self.stream),
             mode: Mode::Server,
@@ -75,10 +76,10 @@ pub struct Endpoint {
 }
 
 impl Endpoint {
-    pub async fn open(addr: impl ToSocketAddrs) -> Result<(Endpoint, SystemInfo)> {
+    pub async fn open(addr: impl ToSocketAddrs, port: u16) -> Result<(Endpoint, SystemInfo)> {
         let mut stream = TcpStream::connect(addr).await?;
 
-        handshake::send_hello(&mut stream).await?;
+        handshake::send_hello(&mut stream, port).await?;
         let hello = handshake::read_hello(&mut stream).await?;
 
         Ok((
@@ -95,8 +96,9 @@ impl Endpoint {
     pub async fn open_with_timeout(
         addr: impl ToSocketAddrs + Debug,
         duration: Duration,
+        port: u16,
     ) -> Result<(Endpoint, SystemInfo)> {
-        match nio::timeout(duration, Self::open(&addr)).await {
+        match nio::timeout(duration, Self::open(&addr, port)).await {
             None => bail!("Connection to {addr:?} timed out after {duration:?}"),
             Some(conn) => conn,
         }

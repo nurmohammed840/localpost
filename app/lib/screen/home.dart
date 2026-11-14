@@ -64,7 +64,7 @@ class ConnectionCard extends StatelessWidget {
             subtitle: Column(
               crossAxisAlignment: .start,
               children: [
-                Text(connection.addr),
+                Text(connection.serverAddr),
                 Text('${info.osName} ${info.osVersion}'),
                 Text('${info.osType} • ${info.architecture}'),
               ],

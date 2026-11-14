@@ -51,11 +51,11 @@ pub struct Hello {
 }
 
 impl Hello {
-    pub fn message() -> Self {
+    pub fn message(port: u16) -> Self {
         Self {
             protocol: "localpost".into(),
             version: 10,
-            info: SystemInfo::get(),
+            info: SystemInfo::new(port),
         }
     }
 
@@ -87,10 +87,13 @@ pub struct SystemInfo {
 
     #[key = 4]
     pub hostname: String,
+
+    #[key = 5]
+    pub port: u16,
 }
 
 impl SystemInfo {
-    pub fn get() -> Self {
+    pub fn new(port: u16) -> Self {
         use sysinfo::System;
         SystemInfo {
             os_name: System::name().unwrap_or_default(),
@@ -98,6 +101,7 @@ impl SystemInfo {
             os_type: SYS::OS.to_string(),
             architecture: SYS::ARCH.to_string(),
             hostname: System::host_name().unwrap_or_default(),
+            port,
         }
     }
 }

@@ -217,12 +217,16 @@ fn wire__crate__api__bridge__ResEndpoint_open_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_addr = <String>::sse_decode(&mut deserializer);
             let api_timeout_ms = <u64>::sse_decode(&mut deserializer);
+            let api_server_port = <u16>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::bridge::ResEndpoint::open(api_addr, api_timeout_ms)?;
+                        let output_ok = crate::api::bridge::ResEndpoint::open(
+                            api_addr,
+                            api_timeout_ms,
+                            api_server_port,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -602,6 +606,7 @@ const _: fn() = || {
         let _: String = SystemInfo.os_type;
         let _: String = SystemInfo.architecture;
         let _: String = SystemInfo.hostname;
+        let _: u16 = SystemInfo.port;
     }
     {
         let TransferID = None::<crate::api::bridge::TransferID>.unwrap();
@@ -858,12 +863,14 @@ impl SseDecode for crate::api::bridge::SystemInfo {
         let mut var_osType = <String>::sse_decode(deserializer);
         let mut var_architecture = <String>::sse_decode(deserializer);
         let mut var_hostname = <String>::sse_decode(deserializer);
+        let mut var_port = <u16>::sse_decode(deserializer);
         return crate::api::bridge::SystemInfo {
             os_name: var_osName,
             os_version: var_osVersion,
             os_type: var_osType,
             architecture: var_architecture,
             hostname: var_hostname,
+            port: var_port,
         };
     }
 }
@@ -1099,6 +1106,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::bridge::SystemInfo
             self.0.os_type.into_into_dart().into_dart(),
             self.0.architecture.into_into_dart().into_dart(),
             self.0.hostname.into_into_dart().into_dart(),
+            self.0.port.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1335,6 +1343,7 @@ impl SseEncode for crate::api::bridge::SystemInfo {
         <String>::sse_encode(self.os_type, serializer);
         <String>::sse_encode(self.architecture, serializer);
         <String>::sse_encode(self.hostname, serializer);
+        <u16>::sse_encode(self.port, serializer);
     }
 }
 

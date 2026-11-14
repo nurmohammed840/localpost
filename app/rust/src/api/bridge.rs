@@ -23,6 +23,7 @@ pub struct _SystemInfo {
     pub os_type: String,
     pub architecture: String,
     pub hostname: String,
+    pub port: u16,
 }
 
 #[frb(mirror(TransferID))]
@@ -106,10 +107,15 @@ pub struct ResEndpoint {
 }
 
 impl ResEndpoint {
-    pub fn open(addr: String, timeout_ms: u64) -> Result<(ResEndpoint, SystemInfo)> {
+    pub fn open(
+        addr: String,
+        timeout_ms: u64,
+        server_port: u16,
+    ) -> Result<(ResEndpoint, SystemInfo)> {
         block_on(async move || {
             let (endpoint, info) =
-                Endpoint::open_with_timeout(addr, Duration::from_millis(timeout_ms)).await?;
+                Endpoint::open_with_timeout(addr, Duration::from_millis(timeout_ms), server_port)
+                    .await?;
 
             Ok((endpoint.into(), info))
         })

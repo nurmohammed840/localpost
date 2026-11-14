@@ -2,17 +2,21 @@ import 'package:localpost/core/signal.dart';
 import 'package:localpost/dialog/error_snackbar.dart';
 import 'package:localpost/src/rust/api/bridge.dart';
 
-class const ServerAddr(final String addr, final String qr);
+class const ServerAddr(final String addr, final String qr) {
+  int port() {
+    return int.parse(addr.split(':')[1]);
+  }
+}
 
 class const Connection(
-  final String addr,
+  final String serverAddr,
   final ResEndpoint endpoint,
   final SystemInfo systemInfo,
 ) {
   Future disconnect() async {
     try {
       connections.update((list) {
-        list.removeWhere((connection) => connection.addr == addr);
+        list.removeWhere((connection) => connection.serverAddr == serverAddr);
       });
       await endpoint.disconnect();
     } catch (error) {
@@ -74,9 +78,15 @@ Future runServer(int port) async {
 
 Future openConnection(String addr, {int timeoutMs = 3 * 1000}) async {
   try {
+    final port = serverAddr.value?.port();
+    if (port == null) {
+      throw "No server is running";
+    }
+
     final (endpoint, systemInfo) = await ResEndpoint.open(
       addr: addr,
       timeoutMs: BigInt.from(timeoutMs),
+      serverPort: port,
     );
 
     final conn = Connection(addr, endpoint, systemInfo);
@@ -89,7 +99,7 @@ Future openConnection(String addr, {int timeoutMs = 3 * 1000}) async {
 
 void removeConnection(String addr) {
   connections.update((list) {
-    list.removeWhere((connection) => connection.addr == addr);
+    list.removeWhere((connection) => connection.serverAddr == addr);
   });
 }
 
