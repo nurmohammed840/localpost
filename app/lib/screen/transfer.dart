@@ -5,7 +5,5 @@ class TransferScreen extends StatelessWidget {
   const new({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(appBar: appBar(context, title: const Text('Transfer')));
-  }
+  Widget build(_) => Scaffold(appBar: appBar(title: const Text('Transfer')));
 }

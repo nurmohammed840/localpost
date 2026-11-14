@@ -11,7 +11,7 @@ class HomeScreen extends StatelessWidget {
   static Listenable signal = Listenable.merge([serverAddr, connections]);
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(_) => Scaffold(
     appBar: appBar(title: const Text('Local Post')),
     body: Watch(
       signal: signal,
