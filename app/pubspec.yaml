@@ -38,6 +38,7 @@ dependencies:
     path: rust_builder
   flutter_rust_bridge: 2.13.0
   flutter_svg: ^2.3.3
+  file_picker: ^13.3.3
 
 dev_dependencies:
   flutter_test:

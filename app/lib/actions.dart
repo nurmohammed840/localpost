@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:localpost/api.dart';
 import 'package:localpost/dialog/prompt.dart';
@@ -11,3 +12,8 @@ Future connect(BuildContext context, String ipAddr) async {
 }
 
 void scanQR() {}
+
+Future filePicker() async {
+  final result = FilePicker.pickFile();
+  print(result);
+}
