@@ -25,14 +25,14 @@ class MyApp extends StatelessWidget {
     theme: .light(),
     darkTheme: .dark(),
     title: 'Local Post',
-    home: MainPage(),
+    home: const MainPage(),
   );
 }
 
 class MainPage extends StatelessWidget {
-  MainPage({super.key});
+  const MainPage({super.key});
 
-  final selectedNav = CreateState(0);
+  static final screenIdx = CreateState(0);
 
   static const screens = [HomeScreen(), TransferScreen()];
   static const destinations = [
@@ -49,13 +49,13 @@ class MainPage extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) => selectedNav.watch(
+  Widget build(BuildContext context) => screenIdx.watch(
     (_) => Scaffold(
-      body: IndexedStack(index: selectedNav.value, children: screens),
+      body: IndexedStack(index: screenIdx.value, children: screens),
       bottomNavigationBar: NavigationBar(
         labelBehavior: .alwaysHide,
-        selectedIndex: selectedNav.value,
-        onDestinationSelected: selectedNav.set,
+        selectedIndex: screenIdx.value,
+        onDestinationSelected: screenIdx.set,
         destinations: destinations,
       ),
     ),

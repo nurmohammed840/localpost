@@ -1,31 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:localpost/actions.dart';
 import 'package:localpost/api.dart';
+import 'package:localpost/core/signal.dart';
+import 'package:localpost/main.dart';
 import 'package:localpost/page/settings.dart';
 import 'package:localpost/widget/qrcode.dart';
 
-AppBar appBar(BuildContext context, {Widget? title}) => AppBar(
+AppBar appBar({Widget? title}) => AppBar(
   title: title,
   actionsPadding: const .only(right: 12),
-  actions: [
-    PopupMenuButton(
-      position: .under,
-      itemBuilder: (context) => [
-        ...menuList(context),
-        popupMenuItem(
+  actions: const [ActionBtn()],
+);
+
+class ActionBtn extends StatelessWidget {
+  const new({super.key});
+
+  static Listenable signal = Listenable.merge([
+    MainPage.screenIdx,
+    connections,
+  ]);
+
+  @override
+  Widget build(BuildContext context) => Watch(
+    signal: signal,
+    builder: (context) {
+      if (MainPage.screenIdx.value == 0 && connections.value.isEmpty) {
+        return IconButton(
+          tooltip: 'Settings',
           icon: const Icon(Icons.settings),
-          child: const Text('Settings'),
-          onTap: () {
+          onPressed: () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const Settings()),
             );
           },
-        ),
-      ],
-    ),
-  ],
-);
+        );
+      }
+
+      return PopupMenuButton(
+        position: .under,
+        itemBuilder: (context) => [
+          ...menuList(context),
+          popupMenuItem(
+            icon: const Icon(Icons.settings),
+            child: const Text('Settings'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const Settings()),
+              );
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
 
 List<PopupMenuItem<dynamic>> menuList(BuildContext context) {
   if (serverAddr.value == null) {

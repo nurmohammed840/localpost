@@ -11,28 +11,26 @@ class HomeScreen extends StatelessWidget {
   static Listenable signal = Listenable.merge([serverAddr, connections]);
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: appBar(context, title: const Text('Local Post')),
-      body: Watch(
-        signal: signal,
-        builder: (_) => serverAddr.watch((_) {
-          if (connections.value.isEmpty) {
-            return serverAddr.value.mapWidget(
-              (_, ip) => Center(child: QrCode(ip: ip)),
-            );
-          }
-
-          return ListView.builder(
-            padding: const .all(16),
-            itemCount: connections.value.length,
-            itemBuilder: (_, index) =>
-                ConnectionCard(connection: connections.value[index]),
+  Widget build(BuildContext context) => Scaffold(
+    appBar: appBar(title: const Text('Local Post')),
+    body: Watch(
+      signal: signal,
+      builder: (_) => serverAddr.watch((_) {
+        if (connections.value.isEmpty) {
+          return serverAddr.value.mapWidget(
+            (_, ip) => Center(child: QrCode(ip: ip)),
           );
-        }),
-      ),
-    );
-  }
+        }
+
+        return ListView.builder(
+          padding: const .all(16),
+          itemCount: connections.value.length,
+          itemBuilder: (_, index) =>
+              ConnectionCard(connection: connections.value[index]),
+        );
+      }),
+    ),
+  );
 }
 
 class ConnectionCard extends StatelessWidget {
