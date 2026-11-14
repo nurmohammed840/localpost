@@ -19,7 +19,7 @@ class HomeScreen extends StatelessWidget {
         builder: (_) => serverAddr.watch((_) {
           if (connections.value.isEmpty) {
             return serverAddr.value.mapWidget(
-              (_, value) => Center(child: QrCode(info: value)),
+              (_, ip) => Center(child: QrCode(ip: ip)),
             );
           }
 

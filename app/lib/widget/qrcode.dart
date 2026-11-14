@@ -4,9 +4,9 @@ import 'package:localpost/actions.dart';
 import 'package:localpost/api.dart';
 
 class QrCode extends StatelessWidget {
-  const new({super.key, required this.info});
+  const new({super.key, required this.ip});
 
-  final ServerAddr info;
+  final ServerAddr ip;
 
   @override
   Widget build(BuildContext context) => ConstrainedBox(
@@ -16,25 +16,25 @@ class QrCode extends StatelessWidget {
       margin: const .all(16),
       child: Padding(
         padding: const .all(20),
-        child: QRCodeWidget(info: info),
+        child: QRCodeWidget(ip: ip),
       ),
     ),
   );
 }
 
 class QRCodeWidget extends StatelessWidget {
-  const new({super.key, required this.info});
+  const new({super.key, required this.ip});
 
-  final ServerAddr info;
+  final ServerAddr ip;
 
   @override
   Widget build(BuildContext context) => Column(
     mainAxisSize: .min,
     spacing: 12,
     children: [
-      Expanded(child: SvgPicture.string(info.qr)),
+      Expanded(child: SvgPicture.string(ip.qr)),
 
-      SelectableText(info.addr, textAlign: .center),
+      SelectableText(ip.addr, textAlign: .center),
 
       Column(
         spacing: 12,
@@ -44,7 +44,7 @@ class QRCodeWidget extends StatelessWidget {
             icon: const Icon(Icons.link),
             label: const Text('Connect'),
             onPressed: () async {
-              await connect(context, info.addr);
+              await connect(context, ip.addr);
             },
           ),
           OutlinedButton.icon(
@@ -58,4 +58,14 @@ class QRCodeWidget extends StatelessWidget {
   );
 }
 
-void showPopupQRCode() {}
+Future showPopupQRCode(BuildContext context, ServerAddr ip) {
+  return showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      constraints: const BoxConstraints(minWidth: 600),
+      title: SelectableText(ip.addr, textAlign: .center),
+      content: SvgPicture.string(ip.qr),
+      actions: const [],
+    ),
+  );
+}
