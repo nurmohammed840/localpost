@@ -8,8 +8,6 @@ class QrCode extends StatelessWidget {
 
   final ServerAddr info;
 
-  void scanQR() {}
-
   @override
   Widget build(BuildContext context) => ConstrainedBox(
     constraints: const BoxConstraints(maxWidth: 700, maxHeight: 800),
@@ -18,35 +16,46 @@ class QrCode extends StatelessWidget {
       margin: const .all(16),
       child: Padding(
         padding: const .all(20),
-        child: Column(
-          spacing: 12,
-          mainAxisSize: .min,
-          children: [
-            Expanded(child: SvgPicture.string(info.qr)),
-
-            SelectableText(info.addr, textAlign: .center),
-
-            Column(
-              crossAxisAlignment: .stretch,
-              spacing: 12,
-              children: [
-                FilledButton.icon(
-                  icon: const Icon(Icons.link),
-                  label: const Text('Connect'),
-                  onPressed: () async {
-                    await connect(context, info.addr);
-                  },
-                ),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('Scan QR'),
-                  onPressed: scanQR,
-                ),
-              ],
-            ),
-          ],
-        ),
+        child: QRCodeWidget(info: info),
       ),
     ),
   );
 }
+
+class QRCodeWidget extends StatelessWidget {
+  const new({super.key, required this.info});
+
+  final ServerAddr info;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: .min,
+    spacing: 12,
+    children: [
+      Expanded(child: SvgPicture.string(info.qr)),
+
+      SelectableText(info.addr, textAlign: .center),
+
+      Column(
+        spacing: 12,
+        crossAxisAlignment: .stretch,
+        children: [
+          FilledButton.icon(
+            icon: const Icon(Icons.link),
+            label: const Text('Connect'),
+            onPressed: () async {
+              await connect(context, info.addr);
+            },
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Scan QR'),
+            onPressed: scanQR,
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+void showPopupQRCode() {}

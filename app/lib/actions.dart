@@ -9,3 +9,5 @@ Future connect(BuildContext context, String ipAddr) async {
   }
   await openConnection(addr);
 }
+
+void scanQR() {}

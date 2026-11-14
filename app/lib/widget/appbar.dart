@@ -19,14 +19,14 @@ AppBar appBar(BuildContext context, {Widget? title}) => AppBar(
           icon: const Icon(Icons.link),
           child: const Text('Connect'),
           onTap: () async {
-            await connect(context, "192.168.0.1");
+            await connect(context, "192.168.0.10");
           },
         ),
 
         popupMenuItem(
           icon: const Icon(Icons.qr_code_scanner),
           child: const Text('Scan QR'),
-          onTap: () {},
+          onTap: scanQR,
         ),
 
         popupMenuItem(
