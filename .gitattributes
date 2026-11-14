@@ -1,4 +1,5 @@
-android/** linguist-vendored
-windows/** linguist-vendored
-linux/**   linguist-vendored
-web/**     linguist-vendored
+app/android/**       linguist-vendored
+app/linux/**         linguist-vendored
+app/windows/**       linguist-vendored
+app/rust_builder/**  linguist-vendored
+app/web/**           linguist-vendored
