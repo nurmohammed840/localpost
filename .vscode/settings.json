@@ -14,6 +14,7 @@
         //      
         "target": true,
         "**/*.lock": true,
+        ".gitattributes": true,
         //
         "app/.flutter-plugins-dependencies": true,
         "app/.metadata": true,
@@ -23,6 +24,7 @@
         "app/rust/cargokit.yaml": true,
         "app/localpost.iml": true,
         //
+        "app/build": true,
         "app/android": true,
         "app/windows": true,
         "app/linux": true,
