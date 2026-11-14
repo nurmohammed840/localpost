@@ -1,20 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:localpost/actions.dart';
 import 'package:localpost/api.dart';
-import 'package:localpost/dialog/prompt.dart';
 
 class QrCode extends StatelessWidget {
   const new({super.key, required this.info});
 
   final ServerAddr info;
-
-  Future connect(BuildContext context, String ipAddr) async {
-    final addr = await promptIPAddr(context, ipAddr: ipAddr.split(':')[0]);
-    if (addr == null) {
-      return;
-    }
-    await openConnection(addr);
-  }
 
   void scanQR() {}
 

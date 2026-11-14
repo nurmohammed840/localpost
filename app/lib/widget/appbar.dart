@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:localpost/actions.dart';
 import 'package:localpost/page/settings.dart';
 
 AppBar appBar(BuildContext context, {Widget? title}) => AppBar(
@@ -7,27 +8,29 @@ AppBar appBar(BuildContext context, {Widget? title}) => AppBar(
   actions: [
     PopupMenuButton(
       position: .under,
-      itemBuilder: (_) => [
+      itemBuilder: (context) => [
         popupMenuItem(
-          icon: Icons.qr_code_rounded,
+          icon: const Icon(Icons.qr_code_rounded),
           child: const Text('Show QR'),
           onTap: () {},
         ),
 
         popupMenuItem(
-          icon: Icons.link,
+          icon: const Icon(Icons.link),
           child: const Text('Connect'),
-          onTap: () {},
+          onTap: () async {
+            await connect(context, "192.168.0.1");
+          },
         ),
 
         popupMenuItem(
-          onTap: () {},
-          icon: Icons.qr_code_scanner,
+          icon: const Icon(Icons.qr_code_scanner),
           child: const Text('Scan QR'),
+          onTap: () {},
         ),
 
         popupMenuItem(
-          icon: Icons.settings,
+          icon: const Icon(Icons.settings),
           child: const Text('Settings'),
           onTap: () {
             Navigator.push(
@@ -42,10 +45,10 @@ AppBar appBar(BuildContext context, {Widget? title}) => AppBar(
 );
 
 PopupMenuItem popupMenuItem({
-  required IconData icon,
+  required Icon icon,
   required Widget child,
   VoidCallback? onTap,
 }) => PopupMenuItem(
   onTap: onTap,
-  child: Row(spacing: 8, children: [Icon(icon), child]),
+  child: Row(spacing: 8, children: [icon, child]),
 );
