@@ -34,6 +34,7 @@ class MainPage extends StatelessWidget {
 
   final selectedNav = CreateState(0);
 
+  static const screens = [HomeScreen(), TransferScreen()];
   static const destinations = [
     NavigationDestination(
       icon: Icon(Icons.home_outlined),
@@ -46,8 +47,6 @@ class MainPage extends StatelessWidget {
       label: 'Transfer',
     ),
   ];
-
-  static const screens = [HomeScreen(), TransferScreen()];
 
   @override
   Widget build(BuildContext context) => selectedNav.watch(
