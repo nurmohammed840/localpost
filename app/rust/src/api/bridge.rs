@@ -200,26 +200,28 @@ impl ResRecvStatus {
 
 // ---
 
-pub async fn pick_file_desktop() -> Option<String> {
+pub fn pick_file(dir: Option<String>) -> Option<String> {
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         None // Android uses the Kotlin picker instead
     }
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     {
-        rfd::AsyncFileDialog::new()
-            .pick_file()
-            .await
-            .map(|p| p.path().to_string_lossy().into_owned())
-    }
-}
+        let mut dialog = rfd::FileDialog::new()
+            .set_title("Select file to send")
+            .set_show_hidden_files(true);
 
-#[test]
-fn test_pick_file_desktop() {
-    block_on(async || {
-        let a = pick_file_desktop().await;
-        println!("a: {:#?}", a);
-    });
+        let dir = dir
+            .map(PathBuf::from)
+            .filter(|p| p.is_dir())
+            .or_else(std::env::home_dir);
+
+        if let Some(path) = dir {
+            dialog = dialog.set_directory(path);
+        }
+
+        dialog.pick_file().map(|p| p.to_string_lossy().into_owned())
+    }
 }
 
 // ---
