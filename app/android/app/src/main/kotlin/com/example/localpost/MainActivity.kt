@@ -1,4 +1,4 @@
-package com.example.app // TODO: replace with your app's package name
+package com.example.localpost
 
 import android.app.Activity
 import android.content.Intent
@@ -10,21 +10,19 @@ import android.provider.OpenableColumns
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 
 class MainActivity : FlutterActivity() {
 
-    // Provider calls (query / openFileDescriptor) are Binder IPC and can block,
-    // especially for cloud-backed providers, so they run off the main thread.
-    // One worker is enough: picks are effectively one-at-a-time.
-    private val ioExecutor: ExecutorService = Executors.newSingleThreadExecutor { r ->
-        Thread(r, "file-fd-io").apply { isDaemon = true }
+    companion object {
+        private const val CHANNEL = "app/file_fd"
+        private const val REQUEST_PICK_FILE = 0xF11E
     }
+
+    private val ioExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // Only touched on the main thread.
     private var pendingResult: MethodChannel.Result? = null
     private var pendingWritable = false
 
@@ -41,7 +39,6 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        // Lets an in-flight task finish; no new tasks are accepted.
         ioExecutor.shutdown()
         super.onDestroy()
     }
@@ -82,6 +79,7 @@ class MainActivity : FlutterActivity() {
 
         val result = pendingResult ?: return
         val writable = pendingWritable
+
         pendingResult = null
         pendingWritable = false
 
@@ -105,60 +103,57 @@ class MainActivity : FlutterActivity() {
 
     /** Runs on the worker thread. Never touches [result] directly. */
     private fun openOnWorker(uri: Uri, writable: Boolean, result: MethodChannel.Result) {
-        val opened: OpenedFile = try {
-            // Resolve the name BEFORE detaching so nothing can throw (and leak
-            // the fd) between detachFd() and handing it back.
-            val name = queryDisplayName(uri) ?: uri.lastPathSegment ?: "unknown"
-
-            // "r"  = read only
-            // "rw" = read/write, no truncation ("rwt" would truncate the file)
+        try {
+            // Resolve the name BEFORE detaching so nothing can throw
+            // (and leak the fd) between detachFd() and handing it back.
+            val name = queryDisplayName(uri) ?: uri.lastPathSegment?.takeIf { it.isNotBlank() } ?: "unknown"
             val mode = if (writable) "rw" else "r"
+
             val pfd = contentResolver.openFileDescriptor(uri, mode)
                 ?: throw IllegalStateException("Provider returned a null file descriptor")
 
             // Ownership of the fd moves to the caller (Rust). Kotlin must not close it.
-            OpenedFile(fd = pfd.detachFd(), name = name)
+            val fd = pfd.detachFd()
+
+            val posted = mainHandler.post {
+                if (isDestroyed) {
+                    closeFd(fd)
+                    return@post
+                }
+                try {
+                    result.success(mapOf("fd" to fd, "name" to name))
+                } catch (e: Exception) {
+                    closeFd(fd)
+                }
+            }
+
+            if (!posted) {
+                closeFd(fd)
+            }
         } catch (e: Exception) {
             mainHandler.post { result.error("OPEN_FAILED", e.message, null) }
-            return
         }
 
-        // MethodChannel.Result must be completed on the main thread.
-        mainHandler.post {
-            if (isDestroyed) {
-                // Nobody can receive the fd anymore; close it so it doesn't leak.
-                closeFd(opened.fd)
-                return@post
-            }
-            try {
-                result.success(mapOf("fd" to opened.fd, "name" to opened.name))
-            } catch (e: Exception) {
-                closeFd(opened.fd)
-            }
-        }
     }
 
     private fun queryDisplayName(uri: Uri): String? =
-        contentResolver
-            .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-            ?.use { cursor ->
-                if (!cursor.moveToFirst()) return@use null
-                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (idx >= 0 && !cursor.isNull(idx)) cursor.getString(idx) else null
-            }
+        try {
+            contentResolver
+                .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { cursor ->
+                    if (!cursor.moveToFirst()) return@use null
+                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (idx >= 0 && !cursor.isNull(idx)) cursor.getString(idx) else null
+                }
+                ?.takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            null // the name is cosmetic; don't fail the pick over it
+        }
 
-    /** Re-wraps a detached fd so it can be closed. Only for fds Dart never received. */
     private fun closeFd(fd: Int) {
         try {
             ParcelFileDescriptor.adoptFd(fd).close()
         } catch (ignored: Exception) {
         }
-    }
-
-    private class OpenedFile(val fd: Int, val name: String)
-
-    companion object {
-        private const val CHANNEL = "app/file_fd"
-        private const val REQUEST_PICK_FILE = 0xF11E
     }
 }
