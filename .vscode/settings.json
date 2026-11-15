@@ -13,6 +13,7 @@
         "**/.plugin_symlinks": true,
         //      
         ".direnv": true,
+        ".envrc": true,
         ".gitattributes": true,
         "**/*.lock": true,
         "target": true,
@@ -24,6 +25,7 @@
         "app/rust/src/frb_generated.rs": true,
         "app/rust/cargokit.yaml": true,
         "app/localpost.iml": true,
+        "app/shell.nix": true,
         //
         "app/build": true,
         "app/android": true,
