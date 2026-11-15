@@ -198,7 +198,31 @@ impl ResRecvStatus {
     }
 }
 
-// ----
+// ---
+
+pub async fn pick_file_desktop() -> Option<String> {
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    {
+        None // Android uses the Kotlin picker instead
+    }
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    {
+        rfd::AsyncFileDialog::new()
+            .pick_file()
+            .await
+            .map(|p| p.path().to_string_lossy().into_owned())
+    }
+}
+
+#[test]
+fn test_pick_file_desktop() {
+    block_on(async || {
+        let a = pick_file_desktop().await;
+        println!("a: {:#?}", a);
+    });
+}
+
+// ---
 
 impl From<Listener> for Server {
     fn from(value: Listener) -> Self {

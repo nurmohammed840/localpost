@@ -12,9 +12,10 @@
         "**/.symlinks": true,
         "**/.plugin_symlinks": true,
         //      
-        "target": true,
-        "**/*.lock": true,
+        ".direnv": true,
         ".gitattributes": true,
+        "**/*.lock": true,
+        "target": true,
         //
         "app/.flutter-plugins-dependencies": true,
         "app/.metadata": true,

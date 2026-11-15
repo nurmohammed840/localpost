@@ -9,14 +9,17 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 localpost = { path = "../../" }
 send_wrapper = "0.6"
-qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 local-ip-address = "0.6"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 flutter_rust_bridge = { version = "=2.13.0", default-features = false, features = [
     "anyhow",
     "dart-opaque",
     "rust-async",
     "thread-pool",
 ] }
+
+[target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
+rfd = { version = "0.18", default-features = false, features = ["xdg-portal"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
