@@ -151,6 +151,7 @@ impl Endpoint {
                 });
 
                 stream.send_last_msg(file_info).await?;
+                drop(stream);
                 task.await?
             }
         }
