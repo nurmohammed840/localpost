@@ -66,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1923657633;
+  int get rustContentHash => 1065045678;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -93,7 +93,14 @@ abstract class RustLibApi extends BaseApi {
     required int serverPort,
   });
 
-  Future<void> crateApiBridgeResEndpointSendFile({
+  Future<void> crateApiBridgeResEndpointSendFileFromFd({
+    required ResEndpoint that,
+    required int fd,
+    required String name,
+    required int frameSize,
+  });
+
+  Future<void> crateApiBridgeResEndpointSendFileFromPath({
     required ResEndpoint that,
     required String path,
     required int frameSize,
@@ -123,7 +130,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiBridgeInitApp();
 
-  Future<String?> crateApiBridgePickFile({String? dir});
+  Future<String?> crateApiBridgePickFile({String? fromDir});
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_ResConnection;
@@ -328,7 +335,49 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiBridgeResEndpointSendFile({
+  Future<void> crateApiBridgeResEndpointSendFileFromFd({
+    required ResEndpoint that,
+    required int fd,
+    required String name,
+    required int frameSize,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResEndpoint(
+            that,
+            serializer,
+          );
+          sse_encode_i_32(fd, serializer);
+          sse_encode_String(name, serializer);
+          sse_encode_u_16(frameSize, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiBridgeResEndpointSendFileFromFdConstMeta,
+        argValues: [that, fd, name, frameSize],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBridgeResEndpointSendFileFromFdConstMeta =>
+      const TaskConstMeta(
+        debugName: "ResEndpoint_send_file_from_fd",
+        argNames: ["that", "fd", "name", "frameSize"],
+      );
+
+  @override
+  Future<void> crateApiBridgeResEndpointSendFileFromPath({
     required ResEndpoint that,
     required String path,
     required int frameSize,
@@ -346,7 +395,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 6,
             port: port_,
           );
         },
@@ -354,16 +403,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiBridgeResEndpointSendFileConstMeta,
+        constMeta: kCrateApiBridgeResEndpointSendFileFromPathConstMeta,
         argValues: [that, path, frameSize],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiBridgeResEndpointSendFileConstMeta =>
+  TaskConstMeta get kCrateApiBridgeResEndpointSendFileFromPathConstMeta =>
       const TaskConstMeta(
-        debugName: "ResEndpoint_send_file",
+        debugName: "ResEndpoint_send_file_from_path",
         argNames: ["that", "path", "frameSize"],
       );
 
@@ -380,7 +429,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 7,
             port: port_,
           );
         },
@@ -420,7 +469,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -447,7 +496,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
         },
         codec: SseCodec(
           decodeSuccessData:
@@ -476,7 +525,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_record_u_32_u_32,
@@ -507,7 +556,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 11,
             port: port_,
           );
         },
@@ -547,7 +596,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 11,
+              funcId: 12,
               port: port_,
             );
           },
@@ -576,7 +625,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 13,
             port: port_,
           );
         },
@@ -595,16 +644,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
-  Future<String?> crateApiBridgePickFile({String? dir}) {
+  Future<String?> crateApiBridgePickFile({String? fromDir}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_opt_String(dir, serializer);
+          sse_encode_opt_String(fromDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 14,
             port: port_,
           );
         },
@@ -613,14 +662,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiBridgePickFileConstMeta,
-        argValues: [dir],
+        argValues: [fromDir],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiBridgePickFileConstMeta =>
-      const TaskConstMeta(debugName: "pick_file", argNames: ["dir"]);
+      const TaskConstMeta(debugName: "pick_file", argNames: ["fromDir"]);
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_ResConnection => wire
@@ -828,6 +877,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       frameSize: dco_decode_u_16(arr[3]),
       lastModified: dco_decode_u_64(arr[4]),
     );
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -1207,6 +1262,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final len_ = sse_decode_i_32(deserializer);
@@ -1360,12 +1421,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
-  }
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
   }
 
   @protected
@@ -1607,6 +1662,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -1754,12 +1815,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
-  }
-
-  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
@@ -1814,12 +1869,25 @@ class ResEndpointImpl extends RustOpaque implements ResEndpoint {
   Future<void> disconnect() =>
       RustLib.instance.api.crateApiBridgeResEndpointDisconnect(that: this);
 
-  Future<void> sendFile({required String path, required int frameSize}) =>
-      RustLib.instance.api.crateApiBridgeResEndpointSendFile(
-        that: this,
-        path: path,
-        frameSize: frameSize,
-      );
+  Future<void> sendFileFromFd({
+    required int fd,
+    required String name,
+    required int frameSize,
+  }) => RustLib.instance.api.crateApiBridgeResEndpointSendFileFromFd(
+    that: this,
+    fd: fd,
+    name: name,
+    frameSize: frameSize,
+  );
+
+  Future<void> sendFileFromPath({
+    required String path,
+    required int frameSize,
+  }) => RustLib.instance.api.crateApiBridgeResEndpointSendFileFromPath(
+    that: this,
+    path: path,
+    frameSize: frameSize,
+  );
 }
 
 @sealed

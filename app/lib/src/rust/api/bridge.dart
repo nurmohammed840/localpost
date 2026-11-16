@@ -8,8 +8,8 @@ import 'package:localpost/src/rust/frb_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`
 
-Future<String?> pickFile({String? dir}) =>
-    RustLib.instance.api.crateApiBridgePickFile(dir: dir);
+Future<String?> pickFile({String? fromDir}) =>
+    RustLib.instance.api.crateApiBridgePickFile(fromDir: fromDir);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResConnection>>
 abstract class ResConnection implements RustOpaqueInterface {
@@ -32,7 +32,13 @@ abstract class ResEndpoint implements RustOpaqueInterface {
     serverPort: serverPort,
   );
 
-  Future<void> sendFile({required String path, required int frameSize});
+  Future<void> sendFileFromFd({
+    required int fd,
+    required String name,
+    required int frameSize,
+  });
+
+  Future<void> sendFileFromPath({required String path, required int frameSize});
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>>

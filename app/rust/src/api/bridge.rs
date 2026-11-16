@@ -10,6 +10,7 @@ use flutter_rust_bridge::frb;
 use localpost::{
     deps,
     endpoint::{Connection, Endpoint, FileRequest, Listener},
+    file::FileReader,
     receiver::RecvStatus,
 };
 
@@ -121,11 +122,29 @@ impl ResEndpoint {
         })
     }
 
-    pub fn send_file(&self, path: String, frame_size: u16) -> Result<()> {
+    pub fn send_file_from_path(&self, path: String, frame_size: u16) -> Result<()> {
         let endpoint = self.endpoint.clone();
-        let path = PathBuf::from(path);
 
-        block_on(async move || endpoint.send_file(path, frame_size).await)
+        let (reader, file_info) = FileReader::open(path, frame_size)?;
+
+        block_on(async move || endpoint.send(reader, file_info).await)
+    }
+
+    pub fn send_file_from_fd(&self, fd: i32, name: String, frame_size: u16) -> Result<()> {
+        use std::io::{Seek, SeekFrom};
+        use std::os::fd::FromRawFd;
+
+        // SAFETY: `fd` was detached on the Android side, so we are its sole owner,
+        // and it is closed exactly once when `file` drops.
+        let mut file = unsafe { File::from_raw_fd(fd) };
+        file.seek(SeekFrom::Start(0))?;
+
+        let (_, file_info) =
+            FileReader::from(file, name.into(), frame_size, FileReader::BUFFER_SIZE)?;
+
+        println!("{file_info:#?}");
+
+        Ok(())
     }
 
     pub fn accept_requests(&self, sink: StreamSink<ResFile>) {
@@ -200,7 +219,7 @@ impl ResRecvStatus {
 
 // ---
 
-pub fn pick_file(dir: Option<String>) -> Option<String> {
+pub fn pick_file(from_dir: Option<String>) -> Option<String> {
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         None // Android uses the Kotlin picker instead
@@ -211,10 +230,11 @@ pub fn pick_file(dir: Option<String>) -> Option<String> {
             .set_title("Select file to send")
             .set_show_hidden_files(true);
 
-        let dir = dir
+        let dir = from_dir
             .map(PathBuf::from)
             .filter(|p| p.is_dir())
-            .or_else(std::env::home_dir);
+            .or_else(dirs::download_dir)
+            .or_else(dirs::home_dir);
 
         if let Some(path) = dir {
             dialog = dialog.set_directory(path);

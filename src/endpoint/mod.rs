@@ -15,9 +15,9 @@ use nio::net::{TcpListener, TcpStream};
 use std::{
     cell::RefCell,
     fmt::Debug,
+    fs::File,
     io::{Seek, Write},
     net::{SocketAddr, ToSocketAddrs},
-    path::PathBuf,
     sync::Arc,
     time::Duration,
 };
@@ -125,11 +125,8 @@ impl Endpoint {
         Ok(req)
     }
 
-    pub async fn send_file(&self, path: PathBuf, frame_size: u16) -> Result<()> {
+    pub async fn send(&self, reader: FileReader<File>, mut file_info: FileInfo) -> Result<()> {
         let stream = self.endpoint.create_stream().await?;
-
-        let (reader, mut file_info) =
-            nio::spawn_blocking(move || FileReader::open(path, frame_size)).await??;
 
         let sender = create_udp_socket(self.local_addr)?;
         file_info.tid.udp_port = sender.socket.local_addr()?.port();

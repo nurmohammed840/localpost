@@ -1,4 +1,10 @@
-use std::{fs::File, io::*, path::Path, time::UNIX_EPOCH};
+use std::{
+    ffi::OsString,
+    fs::File,
+    io::{self, *},
+    path::Path,
+    time::UNIX_EPOCH,
+};
 
 use crate::protocol::{FileInfo, TransferID};
 
@@ -11,8 +17,10 @@ pub struct FileReader<T> {
 }
 
 impl FileReader<File> {
+    pub const BUFFER_SIZE: usize = 8 * 1024 * 1024;
+
     pub fn open(path: impl AsRef<Path>, frame_size: u16) -> Result<(Self, FileInfo)> {
-        Self::open_with_capacity(path, frame_size, 8 * 1024 * 1024)
+        Self::open_with_capacity(path, frame_size, Self::BUFFER_SIZE)
     }
 
     pub fn open_with_capacity(
@@ -23,9 +31,8 @@ impl FileReader<File> {
         let name = path
             .as_ref()
             .file_name()
-            .unwrap()
-            .as_encoded_bytes()
-            .to_vec();
+            .ok_or_else(|| io::Error::other("Path has no filename"))?
+            .to_os_string();
 
         let file = File::options().read(true).open(path)?;
         Self::from(file, name, frame_size, capacity)
@@ -33,7 +40,7 @@ impl FileReader<File> {
 
     pub fn from(
         file: File,
-        name: Vec<u8>,
+        name: OsString,
         frame_size: u16,
         capacity: usize,
     ) -> Result<(Self, FileInfo)> {
@@ -55,7 +62,7 @@ impl FileReader<File> {
             },
             FileInfo {
                 tid: TransferID::default(),
-                name,
+                name: name.into_encoded_bytes(),
                 size,
                 frame_size,
                 last_modified,
