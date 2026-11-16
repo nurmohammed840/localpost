@@ -1,6 +1,7 @@
 import 'dart:convert' show utf8;
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:localpost/api.dart';
 import 'package:localpost/widget/appbar.dart';
 
@@ -33,16 +34,22 @@ class TransferScreen extends StatelessWidget {
           final r = fileRequests.value[index];
           final fileName = utf8.decode(r.fileInfo.name, allowMalformed: true);
 
-          return ListTile(
-            isThreeLine: true,
-            leading: const Icon(Icons.download),
-            title: Text(fileName, maxLines: 1, overflow: .ellipsis),
-            subtitle: Column(
-              crossAxisAlignment: .start,
-              children: [
-                Text(formatBytes(r.fileInfo.size)),
-                Text(formatDate(r.fileInfo.lastModified)),
-              ],
+          return Card(
+            elevation: 0,
+            clipBehavior: .antiAlias,
+            margin: const .symmetric(horizontal: 12, vertical: 6),
+            shape: RoundedRectangleBorder(borderRadius: .circular(8)),
+            child: ListTile(
+              onTap: () {},
+              leading: const Icon(Icons.download, size: 32),
+              title: Text(fileName, maxLines: 1, overflow: .ellipsis),
+              subtitle: Column(
+                crossAxisAlignment: .start,
+                children: [
+                  Text(formatDate(r.fileInfo.lastModified)),
+                  Text(formatBytes(r.fileInfo.size)),
+                ],
+              ),
             ),
           );
         },
@@ -62,7 +69,6 @@ String formatBytes(BigInt bytes) {
   return '${size.toStringAsFixed(unit == 0 ? 0 : 1)} ${units[unit]}';
 }
 
-String formatDate(BigInt millis) =>
-    DateTime.fromMillisecondsSinceEpoch(millis.toInt())
-        .toString()
-        .substring(0, 16);
+String formatDate(BigInt secs) =>
+    DateFormat('d MMM yyyy • h:mm a')
+        .format(DateTime.fromMillisecondsSinceEpoch(secs.toInt() * 1000));

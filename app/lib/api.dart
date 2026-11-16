@@ -42,7 +42,9 @@ class const Connection(
           frameSize: frameSize,
         );
       } else {
-        final _ = await pickFile();
+        final path = await pickFile();
+        if (path == null) return;
+        await endpoint.sendFileFromPath(path: path, frameSize: frameSize);
       }
     } catch (error) {
       showErrorSnackBar(error);
