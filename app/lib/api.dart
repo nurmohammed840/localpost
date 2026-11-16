@@ -1,5 +1,8 @@
+import 'dart:io' show Platform;
+
 import 'package:localpost/core/signal.dart';
 import 'package:localpost/dialog/error_snackbar.dart';
+import 'package:localpost/os/android_file_picker.dart';
 import 'package:localpost/src/rust/api/bridge.dart';
 
 class const ServerAddr(final String addr, final String qr) {
@@ -27,7 +30,23 @@ class const Connection(
   }
 
   Future sendFile() async {
-    // endpoint.sendFile(path: "path", frameSize: 1500 - (20 + 8));
+    const frameSize = 1500 - (20 + 8);
+    try {
+      if (Platform.isAndroid) {
+        final picked = await AndroidFilePicker.pickFile();
+        if (picked == null) return;
+
+        await endpoint.sendFileFromFd(
+          fd: picked.fd,
+          name: picked.name,
+          frameSize: frameSize,
+        );
+      } else {
+        final _ = await pickFile();
+      }
+    } catch (error) {
+      showErrorSnackBar(error);
+    }
   }
 }
 

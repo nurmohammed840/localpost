@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:localpost/actions.dart';
 import 'package:localpost/api.dart';
 import 'package:localpost/core/signal.dart';
 import 'package:localpost/widget/appbar.dart';
@@ -77,7 +76,7 @@ class ConnectionCard extends StatelessWidget {
               child: FilledButton.tonalIcon(
                 icon: const Icon(Icons.upload_file),
                 label: const Text('Send file'),
-                onPressed: filePicker,
+                onPressed: connection.sendFile,
               ),
             ),
           ),

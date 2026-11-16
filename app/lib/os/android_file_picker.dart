@@ -10,9 +10,7 @@ class PickedFile {
   String toString() => 'PickedFile(fd: $fd, name: $name)';
 }
 
-class NativeFilePicker {
-  NativeFilePicker._();
-
+class AndroidFilePicker {
   static const MethodChannel _channel = MethodChannel('app/file_fd');
 
   static Future<PickedFile?> pickFile({bool writable = false}) async {
