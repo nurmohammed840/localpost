@@ -144,11 +144,12 @@ class CargoKitPlugin implements Plugin<Project> {
                 platforms = plugin.getTargetPlatforms().collect()
             }
 
+            // LOCAL PATCH: skip x86/x64 in debug builds (arm64 devices only).
             // Same thing addFlutterDependencies does in flutter.gradle
-            if (buildType == "debug") {
-                platforms.add("android-x86")
-                platforms.add("android-x64")
-            }
+            // if (buildType == "debug") {
+            //     platforms.add("android-x86")
+            //     platforms.add("android-x64")
+            // }
 
             // The task name depends on plugin properties, which are not available
             // at this point
