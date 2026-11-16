@@ -133,7 +133,8 @@ impl Endpoint {
 
         match self.mode {
             Mode::Client => {
-                stream.send(file_info).await?;
+                stream.send_last_msg(file_info).await?;
+
                 let tid: TransferID = stream.recv().await?;
                 let receiver_socket_addr = (self.peer_addr.ip(), tid.udp_port);
                 sender.socket.connect(receiver_socket_addr).await?;
@@ -149,7 +150,7 @@ impl Endpoint {
                     FileSender::new(reader, sender).init_send().await
                 });
 
-                stream.send(file_info).await?;
+                stream.send_last_msg(file_info).await?;
                 task.await?
             }
         }
@@ -202,10 +203,15 @@ impl FileRequest {
         let task = nio::spawn_local(async { receiver.init_receive(status).await });
 
         if self.mode == Mode::Server {
-            self.stream.send(file_info.tid).await?;
+            self.stream.send_last_msg(file_info.tid).await?;
         }
 
         task.await?
+    }
+
+    pub async fn close_write(&self) -> Result<()> {
+        self.stream.close_write().await?;
+        Ok(())
     }
 }
 

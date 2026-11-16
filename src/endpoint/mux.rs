@@ -66,8 +66,14 @@ impl Stream {
         FrameDecoder::new(self).decode().await
     }
 
-    pub async fn send<T: lipi::Encode>(&self, data: T) -> anyhow::Result<()> {
-        FrameEncoder::new(self).encode(data).await
+    pub async fn send_last_msg<T: lipi::Encode>(&self, data: T) -> anyhow::Result<()> {
+        FrameEncoder::new(self).encode(data).await?;
+        self.close_write().await?;
+        Ok(())
+    }
+
+    pub async fn close_write(&self) -> io::Result<()> {
+        poll_fn(|cx| Pin::new(&mut &*self).poll_close(cx)).await
     }
 }
 

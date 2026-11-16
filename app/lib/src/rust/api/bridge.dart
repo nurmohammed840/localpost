@@ -43,6 +43,8 @@ abstract class ResEndpoint implements RustOpaqueInterface {
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>>
 abstract class ResFile implements RustOpaqueInterface {
+  Future<void> closeWithoutResponse();
+
   Future<FileInfo> fileInfo();
 
   Future<void> receive({required String path, required ResRecvStatus status});

@@ -194,6 +194,10 @@ impl ResFile {
             self.req.receive(file, status).await
         })
     }
+
+    pub fn close_without_response(self) -> Result<()> {
+        block_on(async move || self.req.close_write().await)
+    }
 }
 
 #[frb(opaque)]
