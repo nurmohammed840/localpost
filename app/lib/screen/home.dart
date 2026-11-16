@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:localpost/api.dart';
 import 'package:localpost/core/signal.dart';
+import 'package:localpost/src/rust/api/bridge.dart';
 import 'package:localpost/widget/appbar.dart';
 import 'package:localpost/widget/qrcode.dart';
 import 'package:localpost/widget/utils/optional.dart';
@@ -25,65 +26,71 @@ class HomeScreen extends StatelessWidget {
         return ListView.builder(
           padding: const .all(16),
           itemCount: connections.value.length,
-          itemBuilder: (_, index) =>
-              ConnectionCard(connection: connections.value[index]),
+          itemBuilder: (context, index) => Card(
+            elevation: 0,
+            margin: const .only(bottom: 10),
+            shape: RoundedRectangleBorder(borderRadius: .circular(8)),
+            child: ConnectionWidget(
+              connection: connections.value[index],
+              info: connections.value[index].systemInfo,
+              scheme: Theme.of(context).colorScheme,
+            ),
+          ),
         );
       }),
     ),
   );
 }
 
-class ConnectionCard extends StatelessWidget {
-  const new({super.key, required this.connection});
+class ConnectionWidget extends StatelessWidget {
+  const new({
+    super.key,
+    required this.info,
+    required this.connection,
+    required this.scheme,
+  });
 
+  final SystemInfo info;
   final Connection connection;
+  final ColorScheme scheme;
 
   @override
-  Widget build(BuildContext context) {
-    final info = connection.systemInfo;
-    final scheme = Theme.of(context).colorScheme;
+  Widget build(BuildContext context) => Column(
+    children: [
+      ListTile(
+        isThreeLine: true,
+        leading: Icon(getOsIcon(info.osType), size: 40),
+        trailing: IconButton(
+          tooltip: 'Disconnect',
+          onPressed: connection.disconnect,
+          icon: const Icon(Icons.link_off),
+          color: scheme.error,
+        ),
 
-    return Card(
-      elevation: 0,
-      margin: const .only(bottom: 10),
-      shape: RoundedRectangleBorder(borderRadius: .circular(8)),
-      child: Column(
-        children: [
-          ListTile(
-            isThreeLine: true,
-            leading: Icon(getOsIcon(info.osType), size: 40),
-            trailing: IconButton(
-              tooltip: 'Disconnect',
-              onPressed: connection.disconnect,
-              icon: const Icon(Icons.link_off),
-              color: scheme.error,
-            ),
-            title: Text(info.hostname),
-            subtitle: Column(
-              crossAxisAlignment: .start,
-              children: [
-                Text(connection.serverAddr),
-                Text('${info.osName} ${info.osVersion}'),
-                Text('${info.osType} • ${info.architecture}'),
-              ],
-            ),
-          ),
-
-          Padding(
-            padding: const .all(8.0),
-            child: Align(
-              alignment: .centerRight,
-              child: FilledButton.tonalIcon(
-                icon: const Icon(Icons.upload_file),
-                label: const Text('Send file'),
-                onPressed: connection.sendFile,
-              ),
-            ),
-          ),
-        ],
+        title: Text(info.hostname),
+        subtitle: Column(
+          crossAxisAlignment: .start,
+          children: [
+            Text(connection.serverAddr),
+            Text('${info.osName} ${info.osVersion}'),
+            Text('${info.osType} • ${info.architecture}'),
+          ],
+        ),
       ),
-    );
-  }
+
+      Padding(
+        padding: const .all(8.0),
+        child: Align(
+          alignment: .centerRight,
+          child: FilledButton.tonalIcon(
+            icon: const Icon(Icons.upload_file),
+            label: const Text('Send file'),
+            onPressed: connection.sendFile,
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 IconData getOsIcon(String osType) => switch (osType.toLowerCase()) {

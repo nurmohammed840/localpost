@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:localpost/constraints.dart';
 import 'package:localpost/core/lifecycle.dart';
@@ -8,8 +9,9 @@ Future<String?> promptIPAddr(
   String ipAddr = '192.168.0.1',
   int port = defaultPort,
 }) {
-  ipAddr = ipAddr.substring(0, ipAddr.length - 1);
-
+  if (kReleaseMode) {
+    ipAddr = ipAddr.substring(0, ipAddr.length - 1);
+  }
   final ipController = TextEditingController(text: ipAddr);
   final portController = TextEditingController(text: '$port');
 
