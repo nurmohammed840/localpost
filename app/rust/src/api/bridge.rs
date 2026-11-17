@@ -3,7 +3,7 @@ use std::{fs::File, path::PathBuf, sync::Arc, time::Duration};
 use crate::{
     frb_generated::StreamSink,
     resource::Res,
-    runtime::{block_on, init_async_runtime, spawn_blocking},
+    runtime::{block_on, init_async_runtime},
 };
 use deps::anyhow::Result;
 use flutter_rust_bridge::frb;
@@ -181,22 +181,17 @@ impl ResFile {
     pub fn receive(self, path: String, status: &ResRecvStatus) -> Result<()> {
         let status = status.inner.clone();
 
-        block_on(async move || {
-            let file = spawn_blocking(|| {
-                File::options()
-                    .truncate(false)
-                    .create(true)
-                    .write(true)
-                    .open(path)
-            })
-            .await??;
+        let file = File::options()
+            .truncate(false)
+            .create(true)
+            .write(true)
+            .open(path)?;
 
-            self.req.receive(file, status).await
-        })
+        block_on(async move || self.req.arc_inner()?.receive(file, status).await)
     }
 
     pub fn close_without_response(self) -> Result<()> {
-        block_on(async move || self.req.close_write().await)
+        block_on(async move || self.req.arc_inner()?.close_without_response().await)
     }
 }
 

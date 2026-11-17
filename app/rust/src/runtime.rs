@@ -33,11 +33,3 @@ where
 {
     RT.spawn_pinned_at(0, future)
 }
-
-pub fn spawn_blocking<F, R>(f: F) -> nio::JoinHandle<R>
-where
-    F: FnOnce() -> R + Send + 'static,
-    R: Send + 'static,
-{
-    nio::spawn_blocking(f)
-}
