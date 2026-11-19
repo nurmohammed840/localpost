@@ -1,6 +1,8 @@
+mod status;
+mod utils;
+
 pub mod congestion;
 pub mod rtt_estimator;
-mod utils;
 
 use crate::{
     file::{AsyncFrameReader, FileReader},
@@ -10,8 +12,10 @@ use crate::{
 use anyhow::{Result, bail};
 use congestion::LostList;
 use rtt_estimator::RttEstimator;
+pub use status::SendStatus;
 use std::{
     io::{ErrorKind, Read, Seek},
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -74,7 +78,7 @@ where
         }
     }
 
-    pub async fn init_send(&mut self) -> Result<()> {
+    pub async fn init_send(&mut self, status: Arc<SendStatus>) -> Result<()> {
         loop {
             for _ in 0..self.outgoing.remaining_capacity() {
                 let Some(data) = self.next_frame_to_send().await? else {
@@ -83,6 +87,7 @@ where
 
                 self.socket.send(data.as_bytes()).await?;
                 self.outgoing.send(data);
+                status.inc_sent();
             }
 
             if self.outgoing.is_empty() {
@@ -116,8 +121,12 @@ where
             }
 
             self.outgoing.process_lost(self.rtt_estimator.rto());
-            self.outgoing
-                .take_lost_frames_if_flight_is_empty(&mut self.lost_list);
+            if let Some(lost) = self
+                .outgoing
+                .take_lost_frames_if_flight_is_empty(&mut self.lost_list)
+            {
+                status.inc_lost(lost);
+            }
         }
     }
 }

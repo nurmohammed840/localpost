@@ -6,7 +6,7 @@ use crate::{
     file::{FileReader, FileWriter},
     protocol::{FileInfo, SystemInfo, TransferID},
     receiver::{FileReceiver, RecvStatus},
-    sender::FileSender,
+    sender::{FileSender, SendStatus},
     socket::{AsyncDatagramSocket, async_udp::UdpSocket},
 };
 use anyhow::{Result, bail};
@@ -123,7 +123,12 @@ impl Endpoint {
         Ok(req)
     }
 
-    pub async fn send(&self, reader: FileReader<File>, mut file_info: FileInfo) -> Result<()> {
+    pub async fn send(
+        &self,
+        reader: FileReader<File>,
+        mut file_info: FileInfo,
+        status: Arc<SendStatus>,
+    ) -> Result<()> {
         let stream = self.endpoint.create_stream().await?;
 
         let sender = create_udp_socket(self.local_addr)?;
@@ -138,7 +143,7 @@ impl Endpoint {
                 let receiver_socket_addr = (self.peer_addr.ip(), tid.udp_port);
                 sender.socket.connect(receiver_socket_addr).await?;
 
-                FileSender::new(reader, sender).init_send().await
+                FileSender::new(reader, sender).init_send(status).await
             }
             Mode::Server => {
                 let random_id = fastrand::u32(..);
@@ -146,7 +151,7 @@ impl Endpoint {
 
                 let task = nio::spawn_local(async move {
                     wait_for_signal(&sender, random_id).await?;
-                    FileSender::new(reader, sender).init_send().await
+                    FileSender::new(reader, sender).init_send(status).await
                 });
 
                 stream.send_last_msg(file_info).await?;

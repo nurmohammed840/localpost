@@ -3,7 +3,7 @@ use localpost::{
     file::{FileReader, FileWriter},
     protocol::FileInfo,
     receiver::{FileReceiver, RecvStatus},
-    sender::FileSender,
+    sender::{FileSender, SendStatus},
     socket::async_udp::UdpSocket,
 };
 use std::{
@@ -65,7 +65,9 @@ fn test_file_transfer() -> Result<()> {
 
         let task = nio::spawn_local(async move {
             let reader = FileReader::new(MockFile::default(), frame_size, file_size);
-            FileSender::new(reader, sender).init_send().await
+            FileSender::new(reader, sender)
+                .init_send(SendStatus::new())
+                .await
         });
 
         let file_info = file_info(frame_size, file_size);

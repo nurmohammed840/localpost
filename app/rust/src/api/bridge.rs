@@ -12,6 +12,7 @@ use localpost::{
     endpoint::{Connection, Endpoint, FileRequest, Listener},
     file::FileReader,
     receiver::RecvStatus,
+    sender::SendStatus,
 };
 
 pub use localpost::protocol::{FileInfo, SystemInfo, TransferID};
@@ -126,7 +127,7 @@ impl ResEndpoint {
         let endpoint = self.endpoint.clone();
         let (reader, file_info) = FileReader::open(path, frame_size)?;
 
-        block_on(async move || endpoint.send(reader, file_info).await)
+        block_on(async move || endpoint.send(reader, file_info, SendStatus::new()).await)
     }
 
     pub fn send_file_from_fd(&self, fd: i32, name: String, frame_size: u16) -> Result<()> {
@@ -142,7 +143,7 @@ impl ResEndpoint {
             FileReader::from(file, name.into(), frame_size, FileReader::BUFFER_SIZE)?;
 
         let endpoint = self.endpoint.clone();
-        block_on(async move || endpoint.send(reader, file_info).await)
+        block_on(async move || endpoint.send(reader, file_info, SendStatus::new()).await)
     }
 
     pub fn accept_requests(&self, sink: StreamSink<ResFile>) {
