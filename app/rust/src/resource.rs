@@ -8,9 +8,7 @@ pub struct Res<T: 'static>(Option<SendWrapper<T>>);
 
 impl<T: 'static> Res<T> {
     pub fn arc_inner(self: Arc<Self>) -> Result<T> {
-        let res =
-            Arc::into_inner(self).ok_or_else(|| anyhow!("cannot take ownership of Res"))?;
-
+        let res = Arc::into_inner(self).ok_or_else(|| anyhow!("cannot take ownership of Res"))?;
         Ok(res.take())
     }
 

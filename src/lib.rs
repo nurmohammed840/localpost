@@ -1,7 +1,7 @@
 #[doc(hidden)]
 pub mod deps {
-    pub use futures;
     pub use anyhow;
+    pub use futures;
     pub use nio;
 }
 

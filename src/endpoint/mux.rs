@@ -154,28 +154,20 @@ async fn drive<S>(
 ) where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    let mut closing = false;
-    let mut close_ack: Option<CloseReply> = None;
     let mut pending_open: Option<OpenReply> = None;
 
-    poll_fn(|cx| {
+    let close_signal = poll_fn(|cx| {
         // 1. Close if Endpoint droped
-        if !closing {
-            if let Poll::Ready(ack) = close_rx.poll_next_unpin(cx) {
-                close_ack = ack;
-                closing = true;
-            }
+        if let Poll::Ready(signal) = close_rx.poll_next_unpin(cx) {
+            return Poll::Ready(signal);
         }
 
         // 2. serve outbound opens
-        while !closing {
+        loop {
             if pending_open.is_none() {
                 match open_rx.poll_next_unpin(cx) {
+                    Poll::Ready(None) => return Poll::Ready(None),
                     Poll::Pending => break,
-                    Poll::Ready(None) => {
-                        closing = true;
-                        break;
-                    }
                     Poll::Ready(Some(tx)) => pending_open = Some(tx),
                 }
             }
@@ -191,25 +183,20 @@ async fn drive<S>(
             }
         }
 
-        // 3. closing: driver ends
-        if closing {
-            let res = ready!(conn.poll_close(cx));
-            if let Some(tx) = close_ack.take() {
-                let _ = tx.send(res);
-            }
-            return Poll::Ready(());
-        }
-
-        // 4. ALWAYS poll inbound after step 2. This drives all I/O.
+        // This drives all I/O.
         while let Some(item) = ready!(conn.poll_next_inbound(cx)) {
             if inbound_tx.unbounded_send(item).is_err() {
-                // Endpoint dropped: re-poll right away so step 1 starts the graceful close.
-                cx.waker().wake_by_ref();
-                return Poll::Pending;
+                return Poll::Ready(None);
             }
         }
 
-        Poll::Ready(())
+        Poll::Ready(None)
     })
     .await;
+
+    // Close gracefully. This is a no-op if the connection is already closed.
+    let result = poll_fn(|cx| conn.poll_close(cx)).await;
+    if let Some(tx) = close_signal {
+        let _ = tx.send(result);
+    }
 }
