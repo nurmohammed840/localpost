@@ -6,10 +6,7 @@ use localpost::{
     sender::{FileSender, SendStatus},
     socket::async_udp::UdpSocket,
 };
-use std::{
-    io::{self, Read, Seek, SeekFrom, Write},
-    time::Instant,
-};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 
 #[derive(Default)]
 struct MockFile {
@@ -63,27 +60,25 @@ fn test_file_transfer() -> Result<()> {
         let frame_size = 1400;
         let file_size = 32 * 1024 * 1024;
 
-        let task = nio::spawn_local(async move {
+        let task: nio::JoinHandle<Result<_>> = nio::spawn_local(async move {
             let reader = FileReader::new(MockFile::default(), frame_size, file_size);
+            let status = SendStatus::new();
             FileSender::new(reader, sender)
-                .init_send(SendStatus::new())
-                .await
+                .init_send(status.clone())
+                .await?;
+            Ok(status)
         });
 
         let file_info = file_info(frame_size, file_size);
         let writer = FileWriter::new(MockFile::default(), frame_size);
         let mut receiver = FileReceiver::new(writer, receiver, &file_info);
 
-        let time = Instant::now();
-
         let status = RecvStatus::new();
         receiver.flush_threshold = 8 * 1024;
         receiver.init_receive(status.clone()).await?;
 
-        println!("time.elapsed(): {:#?}", time.elapsed());
-
         assert_eq!(status.recv_count(), file_info.num_of_frames());
-        task.await??;
+        println!("{:#?}", task.await??);
         Ok(())
     })
 }
