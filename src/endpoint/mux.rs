@@ -90,8 +90,8 @@ impl Endpoint {
         let (open_tx, open_rx) = mpsc::unbounded();
         let (close_tx, close_rx) = mpsc::unbounded();
         let (inbound_tx, inbound_rx) = mpsc::unbounded();
-        let conn = Connection::new(io, Config::default(), mode);
 
+        let conn = Connection::new(io, Config::default(), mode);
         nio::spawn_local(drive(conn, open_rx, close_rx, inbound_tx));
 
         Self {
@@ -159,24 +159,16 @@ async fn drive<S>(
     let mut pending_open: Option<OpenReply> = None;
 
     poll_fn(|cx| {
+        // 1. Close if Endpoint droped
         if !closing {
-            match close_rx.poll_next_unpin(cx) {
-                Poll::Ready(Some(ack)) => {
-                    close_ack = Some(ack);
-                    closing = true;
-                }
-                // Endpoint dropped == close
-                Poll::Ready(None) => closing = true,
-                Poll::Pending => {}
+            if let Poll::Ready(ack) = close_rx.poll_next_unpin(cx) {
+                close_ack = ack;
+                closing = true;
             }
         }
 
         // 2. serve outbound opens
         while !closing {
-            if pending_open.as_ref().is_some_and(|tx| tx.is_canceled()) {
-                pending_open = None;
-            }
-
             if pending_open.is_none() {
                 match open_rx.poll_next_unpin(cx) {
                     Poll::Pending => break,
@@ -186,6 +178,11 @@ async fn drive<S>(
                     }
                     Poll::Ready(Some(tx)) => pending_open = Some(tx),
                 }
+            }
+
+            if pending_open.as_ref().unwrap().is_canceled() {
+                pending_open = None;
+                continue;
             }
 
             match conn.poll_new_outbound(cx) {
@@ -204,19 +201,15 @@ async fn drive<S>(
         }
 
         // 4. ALWAYS poll inbound after step 2. This drives all I/O.
-        loop {
-            match conn.poll_next_inbound(cx) {
-                Poll::Ready(Some(Ok(stream))) => {
-                    let _ = inbound_tx.unbounded_send(Ok(stream));
-                }
-                Poll::Ready(Some(Err(e))) => {
-                    let _ = inbound_tx.unbounded_send(Err(e));
-                    return Poll::Ready(());
-                }
-                Poll::Ready(None) => return Poll::Ready(()),
-                Poll::Pending => return Poll::Pending,
+        while let Some(item) = ready!(conn.poll_next_inbound(cx)) {
+            if inbound_tx.unbounded_send(item).is_err() {
+                // Endpoint dropped: re-poll right away so step 1 starts the graceful close.
+                cx.waker().wake_by_ref();
+                return Poll::Pending;
             }
         }
+
+        Poll::Ready(())
     })
     .await;
 }
