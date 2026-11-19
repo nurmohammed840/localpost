@@ -1,6 +1,5 @@
 use std::{
     cell::RefCell,
-    collections::VecDeque,
     future::poll_fn,
     io,
     pin::Pin,
@@ -143,7 +142,7 @@ impl Endpoint {
 }
 
 /// [yamux] does not support concurrent calls to poll_new_outbound and poll_next_inbound from different tasks.
-/// 
+///
 /// See: https://github.com/libp2p/rust-yamux/issues/237
 async fn drive<S>(
     mut conn: Connection<S>,
@@ -152,21 +151,34 @@ async fn drive<S>(
 ) where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    let mut opens: VecDeque<oneshot::Sender<Result<yamux::Stream>>> = VecDeque::new();
     let mut closing = false;
     let mut close_ack: Option<oneshot::Sender<Result<()>>> = None;
+    let mut pending_open: Option<oneshot::Sender<Result<yamux::Stream>>> = None;
 
     poll_fn(|cx| {
-        // 1. collect commands (all handles dropped == close)
+        // 1. serve outbound opens
         while !closing {
-            match cmd_rx.poll_next_unpin(cx) {
-                Poll::Ready(Some(Command::Open(tx))) => opens.push_back(tx),
-                Poll::Ready(Some(Command::Close(tx))) => {
-                    close_ack = Some(tx);
-                    closing = true;
+            if pending_open.is_none() {
+                match cmd_rx.poll_next_unpin(cx) {
+                    Poll::Pending => break,
+                    Poll::Ready(Some(Command::Open(tx))) => pending_open = Some(tx),
+                    Poll::Ready(Some(Command::Close(tx))) => {
+                        close_ack = Some(tx);
+                        closing = true;
+                        break;
+                    }
+                    Poll::Ready(None) => {
+                        closing = true;
+                        break;
+                    }
                 }
-                Poll::Ready(None) => closing = true,
-                Poll::Pending => break,
+            }
+
+            match conn.poll_new_outbound(cx) {
+                Poll::Pending => break, // keep the slot, retry on wake
+                Poll::Ready(res) => {
+                    let _ = pending_open.take().unwrap().send(res);
+                }
             }
         }
 
@@ -179,19 +191,11 @@ async fn drive<S>(
             return Poll::Ready(());
         }
 
-        // 3. serve outbound opens
-        while !opens.is_empty() {
-            match conn.poll_new_outbound(cx) {
-                Poll::Ready(res) => {
-                    let _ = opens.pop_front().unwrap().send(res);
-                }
-                Poll::Pending => break,
-            }
-        }
-
-        // 4. ALWAYS poll inbound after step 3. This drives all I/O.
+        // 3. ALWAYS poll inbound after step 1. This drives all I/O.
         loop {
             match conn.poll_next_inbound(cx) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(None) => return Poll::Ready(()),
                 Poll::Ready(Some(Ok(stream))) => {
                     let _ = inbound_tx.unbounded_send(Ok(stream));
                 }
@@ -199,8 +203,6 @@ async fn drive<S>(
                     let _ = inbound_tx.unbounded_send(Err(e));
                     return Poll::Ready(());
                 }
-                Poll::Ready(None) => return Poll::Ready(()),
-                Poll::Pending => return Poll::Pending,
             }
         }
     })
