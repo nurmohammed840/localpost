@@ -11,7 +11,6 @@ use crate::{
 };
 use anyhow::{Result, bail};
 use lipi::{Decode, Encode};
-use mux::Endpoint as MuxEndpoint;
 use nio::net::{TcpListener, TcpStream};
 use std::{
     cell::RefCell,
@@ -61,14 +60,14 @@ impl Connection {
         Ok(Endpoint {
             local_addr,
             peer_addr: self.stream.peer_addr()?,
-            endpoint: MuxEndpoint::server(self.stream),
+            endpoint: mux::Endpoint::server(self.stream),
             mode: Mode::Server,
         })
     }
 }
 
 pub struct Endpoint {
-    endpoint: MuxEndpoint,
+    endpoint: mux::Endpoint,
     local_addr: SocketAddr,
     peer_addr: SocketAddr,
     mode: Mode,
@@ -85,7 +84,7 @@ impl Endpoint {
             Endpoint {
                 local_addr: stream.local_addr()?,
                 peer_addr: stream.peer_addr()?,
-                endpoint: MuxEndpoint::client(stream),
+                endpoint: mux::Endpoint::client(stream),
                 mode: Mode::Client,
             },
             hello.info,

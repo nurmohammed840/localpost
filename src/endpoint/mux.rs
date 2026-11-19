@@ -127,7 +127,6 @@ impl Endpoint {
     }
 
     pub async fn accept_stream(&self) -> Result<Option<Stream>> {
-        // the borrow ends inside each poll, never across an await
         poll_fn(|cx| self.inbound_rx.borrow_mut().poll_next_unpin(cx))
             .await
             .transpose()
@@ -137,7 +136,7 @@ impl Endpoint {
     pub async fn close(&self) -> Result<()> {
         let (tx, rx) = oneshot::channel();
         if self.close_tx.unbounded_send(tx).is_err() {
-            return Ok(()); // driver already gone
+            return Ok(());
         }
         rx.await.unwrap_or(Ok(()))
     }
@@ -165,10 +164,9 @@ async fn drive<S>(
         // 2. serve outbound opens
         loop {
             if pending_open.is_none() {
-                match open_rx.poll_next_unpin(cx) {
-                    Poll::Ready(None) => return Poll::Ready(None),
-                    Poll::Pending => break,
-                    Poll::Ready(Some(tx)) => pending_open = Some(tx),
+                match ready_or!(open_rx.poll_next_unpin(cx), break) {
+                    None => return Poll::Ready(None),
+                    Some(tx) => pending_open = Some(tx),
                 }
             }
 
@@ -177,10 +175,8 @@ async fn drive<S>(
                 continue;
             }
 
-            match conn.poll_new_outbound(cx) {
-                Poll::Pending => break, // keep the slot, retry on wake
-                Poll::Ready(res) => _ = pending_open.take().unwrap().send(res),
-            }
+            let res = ready_or!(conn.poll_new_outbound(cx), break);
+            _ = pending_open.take().unwrap().send(res);
         }
 
         // This drives all I/O.
@@ -197,6 +193,17 @@ async fn drive<S>(
     // Close gracefully. This is a no-op if the connection is already closed.
     let result = poll_fn(|cx| conn.poll_close(cx)).await;
     if let Some(tx) = close_signal {
-        let _ = tx.send(result);
+        _ = tx.send(result);
     }
 }
+
+macro_rules! ready_or {
+    ($poll:expr, $otherwise:expr) => {
+        match $poll {
+            ::core::task::Poll::Ready(v) => v,
+            ::core::task::Poll::Pending => $otherwise,
+        }
+    };
+}
+
+use ready_or;

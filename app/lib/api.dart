@@ -138,7 +138,7 @@ void acceptRequests(Connection endpoint) {
         fileRequests.update((list) {
           list.add(FileRequest(fileInfo, request));
         });
-        await request.closeWithoutResponse();
+        // await request.closeWithoutResponse();
       } catch (error) {
         showErrorSnackBar(error);
       }
