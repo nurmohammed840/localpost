@@ -11,6 +11,7 @@ use crate::{
 };
 use anyhow::{Result, bail};
 use lipi::{Decode, Encode};
+use mux::Endpoint as MuxEndpoint;
 use nio::net::{TcpListener, TcpStream};
 use std::{
     cell::RefCell,
@@ -22,8 +23,6 @@ use std::{
     time::Duration,
 };
 use yamux::Mode;
-
-type MuxEndpoint = mux::Endpoint<TcpStream>;
 
 pub fn create_udp_socket(local_addr: SocketAddr) -> Result<UdpSocket> {
     let socket = std::net::UdpSocket::bind((local_addr.ip(), 0))?;
