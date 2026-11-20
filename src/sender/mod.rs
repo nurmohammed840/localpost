@@ -110,6 +110,8 @@ where
             }
 
             let rtts = ack?.map(|ack| {
+                status.inc_ack_count(ack);
+
                 self.last_seen = Instant::now();
                 self.outgoing
                     .mark_as_complete(ack)
