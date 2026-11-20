@@ -210,8 +210,8 @@ impl ResRecvStatus {
     }
 
     #[frb(sync)]
-    pub fn total_and_recv_count(&self) -> (u32, u32) {
-        self.inner.total_and_recv_count()
+    pub fn total_and_recv_count(&self) -> (u64, u32) {
+        self.inner.total_and_duplicate_count()
     }
 }
 

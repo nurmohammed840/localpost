@@ -134,11 +134,11 @@ where
                 self.maybe_send_regular_ack(&frame).await?;
 
                 if is_already_set {
+                    status.inc_duplicate_count();
                     continue;
                 }
 
                 self.writer.write(frame).await?;
-                status.inc_recv_count();
             }
 
             self.send_cumulative_ack_if_no_regular_ack_sent().await?;

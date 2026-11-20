@@ -55,7 +55,7 @@ abstract class ResRecvStatus implements RustOpaqueInterface {
   factory ResRecvStatus() =>
       RustLib.instance.api.crateApiBridgeResRecvStatusNew();
 
-  (int, int) totalAndRecvCount();
+  (BigInt, int) totalAndRecvCount();
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Server>>

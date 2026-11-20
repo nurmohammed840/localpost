@@ -77,7 +77,7 @@ fn test_file_transfer() -> Result<()> {
         receiver.flush_threshold = 8 * 1024;
         receiver.init_receive(status.clone()).await?;
 
-        assert_eq!(status.recv_count(), file_info.num_of_frames());
+        assert_eq!(status.recv_count(), file_info.num_of_frames() as u64);
         println!("{:#?}", task.await??);
         Ok(())
     })

@@ -120,7 +120,7 @@ abstract class RustLibApi extends BaseApi {
 
   ResRecvStatus crateApiBridgeResRecvStatusNew();
 
-  (int, int) crateApiBridgeResRecvStatusTotalAndRecvCount({
+  (BigInt, int) crateApiBridgeResRecvStatusTotalAndRecvCount({
     required ResRecvStatus that,
   });
 
@@ -554,7 +554,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "ResRecvStatus_new", argNames: []);
 
   @override
-  (int, int) crateApiBridgeResRecvStatusTotalAndRecvCount({
+  (BigInt, int) crateApiBridgeResRecvStatusTotalAndRecvCount({
     required ResRecvStatus that,
   }) {
     return handler.executeSync(
@@ -568,7 +568,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_record_u_32_u_32,
+          decodeSuccessData: sse_decode_record_u_64_u_32,
           decodeErrorData: null,
         ),
         constMeta: kCrateApiBridgeResRecvStatusTotalAndRecvCountConstMeta,
@@ -1017,13 +1017,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (int, int) dco_decode_record_u_32_u_32(dynamic raw) {
+  (BigInt, int) dco_decode_record_u_64_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 2) {
       throw Exception('Expected 2 elements, got ${arr.length}');
     }
-    return (dco_decode_u_32(arr[0]), dco_decode_u_32(arr[1]));
+    return (dco_decode_u_64(arr[0]), dco_decode_u_32(arr[1]));
   }
 
   @protected
@@ -1394,9 +1394,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (int, int) sse_decode_record_u_32_u_32(SseDeserializer deserializer) {
+  (BigInt, int) sse_decode_record_u_64_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_field0 = sse_decode_u_32(deserializer);
+    final var_field0 = sse_decode_u_64(deserializer);
     final var_field1 = sse_decode_u_32(deserializer);
     return (var_field0, var_field1);
   }
@@ -1795,9 +1795,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_record_u_32_u_32((int, int) self, SseSerializer serializer) {
+  void sse_encode_record_u_64_u_32(
+    (BigInt, int) self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_32(self.$1, serializer);
+    sse_encode_u_64(self.$1, serializer);
     sse_encode_u_32(self.$2, serializer);
   }
 
@@ -1982,7 +1985,7 @@ class ResRecvStatusImpl extends RustOpaque implements ResRecvStatus {
         RustLib.instance.api.rust_arc_decrement_strong_count_ResRecvStatusPtr,
   );
 
-  (int, int) totalAndRecvCount() => RustLib.instance.api
+  (BigInt, int) totalAndRecvCount() => RustLib.instance.api
       .crateApiBridgeResRecvStatusTotalAndRecvCount(that: this);
 }
 
