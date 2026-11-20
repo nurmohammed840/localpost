@@ -9,6 +9,8 @@ use std::{
     time::Duration,
 };
 
+const SOCK_BUF_SIZE: usize = 64 * 1024 * 1024;
+
 pub struct UdpSocket {
     pub socket: nio::net::UdpSocket,
     timeout: Cell<Option<Duration>>,
@@ -18,6 +20,11 @@ impl TryFrom<std::net::UdpSocket> for UdpSocket {
     type Error = io::Error;
 
     fn try_from(socket: std::net::UdpSocket) -> std::result::Result<Self, Self::Error> {
+        let s = socket2::SockRef::from(&socket);
+
+        let _ = s.set_recv_buffer_size(SOCK_BUF_SIZE);
+        let _ = s.set_send_buffer_size(SOCK_BUF_SIZE);
+
         Ok(Self {
             socket: nio::net::UdpSocket::from_std(socket)?,
             timeout: Cell::new(None),
@@ -27,10 +34,7 @@ impl TryFrom<std::net::UdpSocket> for UdpSocket {
 
 impl UdpSocket {
     pub async fn bind<A: ToSocketAddrs>(addr: A) -> Result<Self> {
-        Ok(Self {
-            socket: nio::net::UdpSocket::bind(addr).await?,
-            timeout: Cell::new(None),
-        })
+        Self::try_from(std::net::UdpSocket::bind(addr)?)
     }
 
     async fn recv_now_or_never(&self, buf: &mut [u8]) -> Option<Result<usize>> {
