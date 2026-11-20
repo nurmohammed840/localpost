@@ -63,20 +63,22 @@ where
             .context("failed to send acknowledgement")
     }
 
-    async fn maybe_send_regular_ack(&mut self, frame: &DataFrame) -> Result<()> {
+    async fn maybe_send_regular_ack(&mut self, frame: &DataFrame) -> Result<bool> {
         let cumulative = self.bitset.filled_upto();
         if let Some(ack) = self.ack_policy.on_frame_received(cumulative, frame.no()) {
             self.send_ack(ack).await?;
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
 
-    async fn send_cumulative_ack_if_no_regular_ack_sent(&mut self) -> Result<()> {
+    async fn send_cumulative_ack_if_no_regular_ack_sent(&mut self) -> Result<bool> {
         let cumulative = self.bitset.filled_upto();
         if let Some(ack) = self.ack_policy.send_ack_if_not_sent(cumulative) {
             self.send_ack(ack).await?;
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
 
     pub async fn send_fin_frame(secket: S, frame: &[u8]) -> Result<()> {
@@ -131,7 +133,9 @@ where
             status.inc_total_count(frames.len() as u32);
 
             for (is_already_set, frame) in frames {
-                self.maybe_send_regular_ack(&frame).await?;
+                if self.maybe_send_regular_ack(&frame).await? {
+                    status.inc_regular_ack_count();
+                }
 
                 if is_already_set {
                     status.inc_duplicate_count();
@@ -141,7 +145,9 @@ where
                 self.writer.write(frame).await?;
             }
 
-            self.send_cumulative_ack_if_no_regular_ack_sent().await?;
+            if self.send_cumulative_ack_if_no_regular_ack_sent().await? {
+                status.inc_cumulative_ack_count();
+            }
 
             if self.bitset.is_full() {
                 return Ok(());

@@ -5,12 +5,19 @@ const DUPLICATE_BITS: u32 = 31;
 const TOTAL_SHIFT: u32 = DUPLICATE_BITS;
 const DUPLICATE_MASK: u64 = (1 << DUPLICATE_BITS) - 1;
 
+const REGULAR_ACK_SHIFT: u32 = 32;
+const CUMULATIVE_ACK_MASK: u64 = u32::MAX as u64;
+
 #[derive(Default)]
 pub struct RecvStatus {
     // high 33 bits = total (every packet seen, duplicates included)
     // low  31 bits = duplicate
     // received = total - duplicate
     state: AtomicU64,
+
+    // high 32 bits = regular acks sent
+    // low  32 bits = cumulative acks sent
+    acks: AtomicU64,
 }
 
 impl RecvStatus {
@@ -24,6 +31,14 @@ impl RecvStatus {
 
     pub fn inc_duplicate_count(&self) {
         self.state.fetch_add(1, Relaxed);
+    }
+
+    pub fn inc_regular_ack_count(&self) {
+        self.acks.fetch_add(1u64 << REGULAR_ACK_SHIFT, Relaxed);
+    }
+
+    pub fn inc_cumulative_ack_count(&self) {
+        self.acks.fetch_add(1, Relaxed);
     }
 
     pub fn total_count(&self) -> u64 {
@@ -40,21 +55,37 @@ impl RecvStatus {
     }
 
     pub fn total_and_duplicate_count(&self) -> (u64, u32) {
-        Self::unpack(self.state.load(Relaxed))
+        let state = self.state.load(Relaxed);
+        ((state >> TOTAL_SHIFT), (state & DUPLICATE_MASK) as u32)
     }
 
-    fn unpack(state: u64) -> (u64, u32) {
-        ((state >> TOTAL_SHIFT), (state & DUPLICATE_MASK) as u32)
+    pub fn regular_ack_count(&self) -> u32 {
+        self.regular_and_cumulative_ack_count().0
+    }
+
+    pub fn cumulative_ack_count(&self) -> u32 {
+        self.regular_and_cumulative_ack_count().1
+    }
+
+    pub fn regular_and_cumulative_ack_count(&self) -> (u32, u32) {
+        let acks = self.acks.load(Relaxed);
+        (
+            (acks >> REGULAR_ACK_SHIFT) as u32,
+            (acks & CUMULATIVE_ACK_MASK) as u32,
+        )
     }
 }
 
 impl fmt::Debug for RecvStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (total, duplicate) = self.total_and_duplicate_count();
+        let (regular, cumulative) = self.regular_and_cumulative_ack_count();
         f.debug_struct("RecvStatus")
             .field("total", &total)
             .field("duplicate", &duplicate)
             .field("received", &total.saturating_sub(duplicate as u64))
+            .field("regular_acks", &regular)
+            .field("cumulative_acks", &cumulative)
             .finish()
     }
 }
