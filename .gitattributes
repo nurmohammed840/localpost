@@ -3,3 +3,4 @@ app/linux/**         linguist-vendored
 app/windows/**       linguist-vendored
 app/rust_builder/**  linguist-vendored
 app/web/**           linguist-vendored
+app/lib/src/**       linguist-vendored
