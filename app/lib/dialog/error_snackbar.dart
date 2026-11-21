@@ -15,6 +15,10 @@ void showSnackBar(Widget content) {
 }
 
 void showErrorSnackBar(Object error) {
-  final message = error is AnyhowException ? error.message : error.toString();
+  final message = formatErrorMessage(error);
   showSnackBar(SelectableText(message));
+}
+
+String formatErrorMessage(Object error) {
+  return error is AnyhowException ? error.message : error.toString();
 }

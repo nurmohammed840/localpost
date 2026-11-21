@@ -72,6 +72,7 @@ class FileRequest(final FileInfo fileInfo, final ResFile request) {
 
 Future runServer(int port) async {
   try {
+    serverState.set(ServerLoading());
     final (server, addr, qr) = await Server.bind(port: port);
     serverState.set(ServerAddr(addr, qr));
 
@@ -81,7 +82,7 @@ Future runServer(int port) async {
         showErrorSnackBar(error);
       },
       onDone: () {
-        showErrorSnackBar('Server stopped');
+        serverState.set(ServerClosed("Server stopped"));
       },
       (conn) async {
         final (connection, systemInfo) = conn;
@@ -97,7 +98,7 @@ Future runServer(int port) async {
       },
     );
   } catch (error) {
-    showErrorSnackBar(error);
+    serverState.set(ServerClosed(formatErrorMessage(error)));
   }
 }
 

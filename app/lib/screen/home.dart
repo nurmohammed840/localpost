@@ -17,7 +17,9 @@ class HomeScreen extends StatelessWidget {
       signal: signal,
       builder: (_) => switch (serverState.value) {
         ServerLoading() => const Center(child: CircularProgressIndicator()),
-        ServerClosed(:final message) => ServerClosedView(message: message),
+        ServerClosed(:final message) => Center(
+          child: ServerClosedView(message: message),
+        ),
         final ServerAddr ip =>
           connections.value.isEmpty
               ? Center(child: QrCode(ip: ip))
@@ -33,24 +35,22 @@ class ServerClosedView extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: .min,
-      spacing: 16,
-      children: [
-        Icon(
-          Icons.wifi_off_rounded,
-          size: 64,
-          color: Theme.of(context).colorScheme.error,
-        ),
-        Text(message, textAlign: .center),
-        FilledButton.icon(
-          onPressed: () {},
-          icon: const Icon(Icons.refresh),
-          label: const Text('Reload'),
-        ),
-      ],
-    ),
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: .min,
+    spacing: 16,
+    children: [
+      Icon(
+        Icons.wifi_off_rounded,
+        size: 64,
+        color: Theme.of(context).colorScheme.error,
+      ),
+      Text(message, textAlign: .center),
+      FilledButton.icon(
+        onPressed: () {},
+        icon: const Icon(Icons.refresh),
+        label: const Text('Reload'),
+      ),
+    ],
   );
 }
 
