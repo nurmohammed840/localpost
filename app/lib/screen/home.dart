@@ -17,8 +17,9 @@ class HomeScreen extends StatelessWidget {
       signal: signal,
       builder: (_) => switch (serverState.value) {
         ServerLoading() => const Center(child: CircularProgressIndicator()),
-        ServerClosed(:final message) => Center(
-          child: ServerClosedView(message: message),
+        ServerClosed(:final message) => Padding(
+          padding: const .all(24.0),
+          child: Center(child: ServerClosedView(message: message)),
         ),
         final ServerAddr ip =>
           connections.value.isEmpty
