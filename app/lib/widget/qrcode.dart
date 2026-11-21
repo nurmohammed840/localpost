@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:localpost/actions.dart';
@@ -47,11 +49,12 @@ class QRCodeWidget extends StatelessWidget {
               await connect(context, ip.addr);
             },
           ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Scan QR'),
-            onPressed: scanQR,
-          ),
+          if (Platform.isAndroid)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Scan QR'),
+              onPressed: () => scanQR(context),
+            ),
         ],
       ),
     ],

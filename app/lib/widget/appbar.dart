@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:localpost/actions.dart';
 import 'package:localpost/api.dart';
@@ -80,11 +82,12 @@ List<PopupMenuItem<dynamic>> menuList(BuildContext context) {
       },
     ),
 
-    popupMenuItem(
-      icon: const Icon(Icons.qr_code_scanner),
-      child: const Text('Scan QR'),
-      onTap: scanQR,
-    ),
+    if (Platform.isAndroid)
+      popupMenuItem(
+        icon: const Icon(Icons.qr_code_scanner),
+        child: const Text('Scan QR'),
+        onTap: () => scanQR(context),
+      ),
   ];
 }
 

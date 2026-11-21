@@ -18,11 +18,11 @@ Future<String?> promptIPAddr(
   return showDialog(
     context: context,
     builder: (_) => Lifecycle(
-      dispose: () {
+      dispose: (_) {
         ipController.dispose();
         portController.dispose();
       },
-      builder: (_) => AlertDialog(
+      builder: (_, _) => AlertDialog(
         constraints: const BoxConstraints(minWidth: 550),
         title: const Text('Connect Device'),
         content: Column(
