@@ -58,10 +58,11 @@ class ActionBtn extends StatelessWidget {
 }
 
 List<PopupMenuItem<dynamic>> menuList(BuildContext context) {
-  if (serverAddr.value == null) {
+  final ip = serverState.value;
+  if (ip is! ServerAddr) {
     return [];
   }
-  final ip = serverAddr.value!;
+
   return [
     popupMenuItem(
       icon: const Icon(Icons.qr_code_rounded),

@@ -4,40 +4,74 @@ import 'package:localpost/core/signal.dart';
 import 'package:localpost/src/rust/api/bridge.dart';
 import 'package:localpost/widget/appbar.dart';
 import 'package:localpost/widget/qrcode.dart';
-import 'package:localpost/widget/utils/optional.dart';
 
 class HomeScreen extends StatelessWidget {
   const new({super.key});
 
-  static Listenable signal = Listenable.merge([serverAddr, connections]);
+  static Listenable signal = Listenable.merge([serverState, connections]);
 
   @override
   Widget build(_) => Scaffold(
     appBar: appBar(title: const Text('Local Post')),
     body: Watch(
       signal: signal,
-      builder: (_) => serverAddr.watch((_) {
-        if (connections.value.isEmpty) {
-          return serverAddr.value.mapWidget(
-            (_, ip) => Center(child: QrCode(ip: ip)),
-          );
-        }
+      builder: (_) => switch (serverState.value) {
+        ServerLoading() => const Center(child: CircularProgressIndicator()),
+        ServerClosed(:final message) => ServerClosedView(message: message),
+        final ServerAddr ip =>
+          connections.value.isEmpty
+              ? Center(child: QrCode(ip: ip))
+              : ConnectionList(list: connections.value),
+      },
+    ),
+  );
+}
 
-        return ListView.builder(
-          padding: const .all(16),
-          itemCount: connections.value.length,
-          itemBuilder: (context, index) => Card(
-            elevation: 0,
-            margin: const .only(bottom: 10),
-            shape: RoundedRectangleBorder(borderRadius: .circular(8)),
-            child: ConnectionWidget(
-              connection: connections.value[index],
-              info: connections.value[index].systemInfo,
-              scheme: Theme.of(context).colorScheme,
-            ),
-          ),
-        );
-      }),
+class ServerClosedView extends StatelessWidget {
+  const new({super.key, required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: .min,
+      spacing: 16,
+      children: [
+        Icon(
+          Icons.wifi_off_rounded,
+          size: 64,
+          color: Theme.of(context).colorScheme.error,
+        ),
+        Text(message, textAlign: .center),
+        FilledButton.icon(
+          onPressed: () {},
+          icon: const Icon(Icons.refresh),
+          label: const Text('Reload'),
+        ),
+      ],
+    ),
+  );
+}
+
+class ConnectionList extends StatelessWidget {
+  const new({super.key, required this.list});
+
+  final List<Connection> list;
+
+  @override
+  Widget build(BuildContext context) => ListView.builder(
+    padding: const .all(16),
+    itemCount: list.length,
+    itemBuilder: (context, index) => Card(
+      elevation: 0,
+      margin: const .only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: .circular(8)),
+      child: ConnectionWidget(
+        connection: list[index],
+        info: list[index].systemInfo,
+        scheme: Theme.of(context).colorScheme,
+      ),
     ),
   );
 }

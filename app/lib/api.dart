@@ -5,10 +5,18 @@ import 'package:localpost/dialog/error_snackbar.dart';
 import 'package:localpost/os/android_file_picker.dart';
 import 'package:localpost/src/rust/api/bridge.dart';
 
-class const ServerAddr(final String addr, final String qr) {
-  int port() {
-    return int.parse(addr.split(':')[1]);
-  }
+CreateState<ServerState> serverState = CreateState(ServerLoading());
+CreateState<List<Connection>> connections = CreateState([]);
+CreateState<List<FileRequest>> fileRequests = CreateState([]);
+
+sealed class ServerState {}
+
+class ServerLoading extends ServerState {}
+
+class ServerClosed(final String message) extends ServerState {}
+
+class ServerAddr(final String addr, final String qr) extends ServerState {
+  int get port => int.parse(addr.split(':')[1]);
 }
 
 class const Connection(
@@ -62,14 +70,10 @@ class FileRequest(final FileInfo fileInfo, final ResFile request) {
   }
 }
 
-CreateState<ServerAddr?> serverAddr = CreateState(null);
-CreateState<List<Connection>> connections = CreateState([]);
-CreateState<List<FileRequest>> fileRequests = CreateState([]);
-
 Future runServer(int port) async {
   try {
     final (server, addr, qr) = await Server.bind(port: port);
-    serverAddr.set(ServerAddr(addr, qr));
+    serverState.set(ServerAddr(addr, qr));
 
     server.run().listen(
       cancelOnError: false,
@@ -99,10 +103,10 @@ Future runServer(int port) async {
 
 Future openConnection(String addr, {int timeoutMs = 3 * 1000}) async {
   try {
-    final port = serverAddr.value?.port();
-    if (port == null) {
-      throw "No server is running";
-    }
+    final port = switch (serverState.value) {
+      ServerAddr(:final port) => port,
+      _ => throw 'Server is not running',
+    };
 
     final (endpoint, systemInfo) = await ResEndpoint.open(
       addr: addr,
