@@ -3,14 +3,16 @@ import 'package:localpost/api.dart';
 import 'package:localpost/constraints.dart';
 import 'package:localpost/core/signal.dart';
 import 'package:localpost/dialog/error_snackbar.dart';
+import 'package:localpost/page/settings.dart';
 import 'package:localpost/screen/home.dart';
 import 'package:localpost/screen/transfer.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 
-Future<void> main() async {
+Future main() async {
   await RustLib.init();
   runApp(const MyApp());
 
+  await Settings.load();
   await runServer(defaultPort);
 }
 
@@ -18,14 +20,16 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    scaffoldMessengerKey: scaffoldMessengerKey,
-    debugShowCheckedModeBanner: false,
-    themeMode: .dark,
-    theme: .light(),
-    darkTheme: .dark(),
-    title: 'Local Post',
-    home: const MainPage(),
+  Widget build(BuildContext context) => Settings.theme.watch(
+    (_) => MaterialApp(
+      scaffoldMessengerKey: scaffoldMessengerKey,
+      debugShowCheckedModeBanner: false,
+      themeMode: Settings.theme.value,
+      theme: .light(),
+      darkTheme: .dark(),
+      title: 'Local Post',
+      home: const MainPage(),
+    ),
   );
 }
 
