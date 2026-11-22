@@ -30,8 +30,8 @@ impl FileBitSet {
             window: VecDeque::new(),
             base: (filled_upto / 8) as usize,
             cap,
-            len: 0,
-            filled_upto: 0,
+            len: filled_upto,
+            filled_upto,
         })
     }
 
