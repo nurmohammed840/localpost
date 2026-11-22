@@ -5,7 +5,7 @@ import 'package:localpost/core/lifecycle.dart';
 import 'package:localpost/utils.dart';
 
 Future<String?> promptIPAddr(
-  BuildContext context, {
+  BuildContext ctx, {
   String ipAddr = '192.168.0.1',
   int port = defaultPort,
 }) {
@@ -16,7 +16,7 @@ Future<String?> promptIPAddr(
   final portController = TextEditingController(text: '$port');
 
   return showDialog(
-    context: context,
+    context: ctx,
     builder: (_) => Lifecycle(
       dispose: (_) {
         ipController.dispose();
@@ -47,17 +47,14 @@ Future<String?> promptIPAddr(
         actions: [
           ListenableBuilder(
             listenable: Listenable.merge([ipController, portController]),
-            builder: (context, _) {
+            builder: (ctx, _) {
               final addr = tryParseLocalAddr(
                 ipController.text,
                 portController.text,
               );
 
               return FilledButton(
-                onPressed: addr == null
-                    ? null
-                    : () => Navigator.pop(context, addr),
-
+                onPressed: addr == null ? null : () => Navigator.pop(ctx, addr),
                 child: const Text('Connect'),
               );
             },

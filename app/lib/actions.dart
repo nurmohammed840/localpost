@@ -5,16 +5,16 @@ import 'package:localpost/dialog/prompt.dart';
 import 'package:localpost/page/qr_scanner.dart';
 import 'package:localpost/utils.dart';
 
-Future connect(BuildContext context, String ipAddr) async {
-  final addr = await promptIPAddr(context, ipAddr: ipAddr.split(':')[0]);
+Future connect(BuildContext ctx, String ipAddr) async {
+  final addr = await promptIPAddr(ctx, ipAddr: ipAddr.split(':')[0]);
   if (addr == null) {
     return;
   }
   await openConnection(addr);
 }
 
-Future scanQR(BuildContext context) async {
-  final result = await Navigator.of(context)
+Future scanQR(BuildContext ctx) async {
+  final result = await Navigator.of(ctx)
       .push<String>(MaterialPageRoute(builder: (_) => const QRScanner()));
 
   if (result == null) {

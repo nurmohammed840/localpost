@@ -44,7 +44,7 @@ class CreateState<T> extends ChangeNotifier implements ValueListenable<T> {
   String toString() => '${describeIdentity(this)}($value)';
 }
 
-typedef WatchableWidgetBuilder = Widget Function(BuildContext context);
+typedef WatchableWidgetBuilder = Widget Function(BuildContext ctx);
 
 class Watch extends StatefulWidget {
   const Watch({super.key, required this.signal, required this.builder});
@@ -85,7 +85,5 @@ class _WatchState extends State<Watch> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return widget.builder(context);
-  }
+  Widget build(ctx) => widget.builder(ctx);
 }

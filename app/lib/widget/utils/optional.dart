@@ -7,19 +7,16 @@ class Optional extends StatelessWidget {
   final WidgetBuilder builder;
 
   @override
-  Widget build(BuildContext context) {
-    if (condition) return builder(context);
+  Widget build(ctx) {
+    if (condition) return builder(ctx);
     return const SizedBox.shrink();
   }
 }
 
 extension NullableWidget<T> on T? {
-  Widget mapWidget(Widget Function(BuildContext context, T value) builder) {
-    if (this == null) return const SizedBox.shrink();
-    return Builder(
-      builder: (context) {
-        return builder(context, this as T);
-      },
-    );
+  Widget mapWidget(Widget Function(T value) builder) {
+    final value = this;
+    if (value == null) return const SizedBox.shrink();
+    return builder(value);
   }
 }

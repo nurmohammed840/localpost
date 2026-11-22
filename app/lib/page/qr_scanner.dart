@@ -6,7 +6,7 @@ class QRScanner extends StatelessWidget {
   const new({super.key});
 
   @override
-  Widget build(BuildContext context) => Lifecycle(
+  Widget build(ctx) => Lifecycle(
     initState: () => MobileScannerController(
       formats: const [.qrCode],
       detectionSpeed: .noDuplicates,
@@ -30,7 +30,7 @@ class QRScanner extends StatelessWidget {
       body: MobileScanner(
         controller: controller,
         onDetect: (capture) {
-          if (ModalRoute.of(context)?.isCurrent != true) return;
+          if (ModalRoute.of(ctx)?.isCurrent != true) return;
 
           final value = capture.barcodes
               .map((b) => b.rawValue)
@@ -39,7 +39,7 @@ class QRScanner extends StatelessWidget {
               ?.trim();
 
           if (value == null || value.isEmpty) return;
-          Navigator.of(context).pop(value);
+          Navigator.of(ctx).pop(value);
         },
       ),
     ),

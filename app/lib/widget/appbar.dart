@@ -23,16 +23,16 @@ class ActionBtn extends StatelessWidget {
   ]);
 
   @override
-  Widget build(BuildContext context) => Watch(
+  Widget build(ctx) => Watch(
     signal: signal,
-    builder: (context) {
+    builder: (ctx) {
       if (MainPage.screenIdx.value == 0 && connections.value.isEmpty) {
         return IconButton(
           tooltip: 'Settings',
           icon: const Icon(Icons.settings),
           onPressed: () {
             Navigator.push(
-              context,
+              ctx,
               MaterialPageRoute(builder: (_) => const Settings()),
             );
           },
@@ -41,14 +41,14 @@ class ActionBtn extends StatelessWidget {
 
       return PopupMenuButton(
         position: .under,
-        itemBuilder: (context) => [
-          ...menuList(context),
+        itemBuilder: (ctx) => [
+          ...menuList(ctx),
           popupMenuItem(
             icon: const Icon(Icons.settings),
             child: const Text('Settings'),
             onTap: () {
               Navigator.push(
-                context,
+                ctx,
                 MaterialPageRoute(builder: (_) => const Settings()),
               );
             },
@@ -59,7 +59,7 @@ class ActionBtn extends StatelessWidget {
   );
 }
 
-List<PopupMenuItem<dynamic>> menuList(BuildContext context) {
+List<PopupMenuItem<dynamic>> menuList(BuildContext ctx) {
   final ip = serverState.value;
   if (ip is! ServerAddr) {
     return [];
@@ -70,7 +70,7 @@ List<PopupMenuItem<dynamic>> menuList(BuildContext context) {
       icon: const Icon(Icons.qr_code_rounded),
       child: const Text('Local IP'),
       onTap: () async {
-        await showPopupQRCode(context, ip);
+        await showPopupQRCode(ctx, ip);
       },
     ),
 
@@ -78,7 +78,7 @@ List<PopupMenuItem<dynamic>> menuList(BuildContext context) {
       icon: const Icon(Icons.link),
       child: const Text('Connect'),
       onTap: () async {
-        await connect(context, ip.addr);
+        await connect(ctx, ip.addr);
       },
     ),
 
@@ -86,7 +86,7 @@ List<PopupMenuItem<dynamic>> menuList(BuildContext context) {
       popupMenuItem(
         icon: const Icon(Icons.qr_code_scanner),
         child: const Text('Scan QR'),
-        onTap: () => scanQR(context),
+        onTap: () => scanQR(ctx),
       ),
   ];
 }

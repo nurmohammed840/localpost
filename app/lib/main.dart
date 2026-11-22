@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) => Settings.theme.watch(
+  Widget build(_) => Settings.theme.watch(
     (_) => MaterialApp(
       scaffoldMessengerKey: scaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
@@ -53,7 +53,7 @@ class MainPage extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) => screenIdx.watch(
+  Widget build(_) => screenIdx.watch(
     (_) => Scaffold(
       body: IndexedStack(index: screenIdx.value, children: screens),
       bottomNavigationBar: NavigationBar(

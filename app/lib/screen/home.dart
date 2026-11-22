@@ -36,14 +36,14 @@ class ServerClosedView extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(ctx) => Column(
     mainAxisSize: .min,
     spacing: 16,
     children: [
       Icon(
         Icons.wifi_off_rounded,
         size: 64,
-        color: Theme.of(context).colorScheme.error,
+        color: Theme.of(ctx).colorScheme.error,
       ),
       Text(message, textAlign: .center),
       FilledButton.icon(
@@ -61,17 +61,17 @@ class ConnectionList extends StatelessWidget {
   final List<Connection> list;
 
   @override
-  Widget build(BuildContext context) => ListView.builder(
+  Widget build(_) => ListView.builder(
     padding: const .all(16),
     itemCount: list.length,
-    itemBuilder: (context, index) => Card(
+    itemBuilder: (ctx, index) => Card(
       elevation: 0,
       margin: const .only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: .circular(8)),
       child: ConnectionWidget(
         connection: list[index],
         info: list[index].systemInfo,
-        scheme: Theme.of(context).colorScheme,
+        scheme: Theme.of(ctx).colorScheme,
       ),
     ),
   );
@@ -90,7 +90,7 @@ class ConnectionWidget extends StatelessWidget {
   final ColorScheme scheme;
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(_) => Column(
     children: [
       ListTile(
         isThreeLine: true,

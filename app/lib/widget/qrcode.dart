@@ -11,7 +11,7 @@ class QrCode extends StatelessWidget {
   final ServerAddr ip;
 
   @override
-  Widget build(BuildContext context) => ConstrainedBox(
+  Widget build(_) => ConstrainedBox(
     constraints: const BoxConstraints(maxWidth: 700, maxHeight: 800),
     child: Card(
       elevation: 0,
@@ -30,7 +30,7 @@ class QRCodeWidget extends StatelessWidget {
   final ServerAddr ip;
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(ctx) => Column(
     mainAxisSize: .min,
     spacing: 12,
     children: [
@@ -46,14 +46,14 @@ class QRCodeWidget extends StatelessWidget {
             icon: const Icon(Icons.link),
             label: const Text('Connect'),
             onPressed: () async {
-              await connect(context, ip.addr);
+              await connect(ctx, ip.addr);
             },
           ),
           if (Platform.isAndroid)
             OutlinedButton.icon(
               icon: const Icon(Icons.qr_code_scanner),
               label: const Text('Scan QR'),
-              onPressed: () => scanQR(context),
+              onPressed: () => scanQR(ctx),
             ),
         ],
       ),
@@ -61,9 +61,9 @@ class QRCodeWidget extends StatelessWidget {
   );
 }
 
-Future showPopupQRCode(BuildContext context, ServerAddr ip) {
+Future showPopupQRCode(BuildContext ctx, ServerAddr ip) {
   return showDialog(
-    context: context,
+    context: ctx,
     builder: (_) => AlertDialog(
       constraints: const BoxConstraints(minWidth: 600),
       title: SelectableText(ip.addr, textAlign: .center),

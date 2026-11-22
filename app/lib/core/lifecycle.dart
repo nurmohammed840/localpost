@@ -6,7 +6,7 @@ class Lifecycle<T> extends StatefulWidget {
   final T Function()? initState;
   final void Function(T value)? dispose;
 
-  final Widget Function(BuildContext context, T value) builder;
+  final Widget Function(BuildContext ctx, T value) builder;
 
   @override
   State<Lifecycle<T>> createState() => _LifecycleState<T>();
@@ -28,5 +28,5 @@ class _LifecycleState<T> extends State<Lifecycle<T>> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.builder(context, _value as T);
+  Widget build(ctx) => widget.builder(ctx, _value as T);
 }

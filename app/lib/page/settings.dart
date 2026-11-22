@@ -18,7 +18,7 @@ class Settings extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(ctx) => Scaffold(
     appBar: AppBar(title: const Text("Settings")),
     body: ListView(
       children: [
@@ -53,7 +53,7 @@ class Settings extends StatelessWidget {
           subtitle: const Text("App info & licenses"),
           onTap: () {
             showAboutDialog(
-              context: context,
+              context: ctx,
               applicationVersion: "0.1.0",
               applicationLegalese: applicationLegalese,
             );
