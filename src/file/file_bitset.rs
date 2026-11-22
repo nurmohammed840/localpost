@@ -18,13 +18,21 @@ pub struct FileBitSet {
 
 impl FileBitSet {
     pub fn new(cap: u32) -> Self {
-        Self {
+        Self::new_with(cap, 0).unwrap()
+    }
+
+    pub fn new_with(cap: u32, filled_upto: u32) -> Result<Self> {
+        if filled_upto > cap {
+            bail!("filled_upto {filled_upto} exceeds capacity {cap}");
+        }
+
+        Ok(Self {
             window: VecDeque::new(),
-            base: 0,
+            base: (filled_upto / 8) as usize,
             cap,
             len: 0,
             filled_upto: 0,
-        }
+        })
     }
 
     /// Equivalent to: `(no - base * 8) / 8`
