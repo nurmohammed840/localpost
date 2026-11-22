@@ -1,59 +1,107 @@
+use std::collections::VecDeque;
+
 use anyhow::{Result, bail};
-use lipi::{BitSet, BitSetMut};
 
 #[derive(Debug)]
 pub struct FileBitSet {
-    bitmap: Vec<u8>,
+    window: VecDeque<u8>,
+    /// Number of bytes already dropped from the front. Every bit in them was set.
+    ///
+    /// same as `filled_upto / 8`
+    base: usize,
     cap: u32,
+    /// Total number of distinct frames set, including the dropped ones.
     len: u32,
-
+    /// Every frame `< filled_upto` has been set.
     filled_upto: u32,
 }
 
 impl FileBitSet {
     pub fn new(cap: u32) -> Self {
         Self {
-            bitmap: vec![0; cap.div_ceil(8) as usize],
+            window: VecDeque::new(),
+            base: 0,
             cap,
             len: 0,
             filled_upto: 0,
         }
     }
 
-    pub fn has(&self, no: u32) -> bool {
-        assert!(no < self.cap);
-        BitSet::has(&self.bitmap, no as usize)
+    /// Equivalent to: `(no - base * 8) / 8`
+    ///
+    /// where `base == (filled_upto / 8)`.
+    ///
+    /// Only valid when `no >= filled_upto`.
+    fn slot_idx(&self, no: u32) -> usize {
+        (no / 8) as usize - self.base
     }
 
+    /// Returns `Ok(true)` if the frame was already set.
     pub fn set(&mut self, no: u32) -> Result<bool> {
         if no >= self.cap {
             bail!("frame number {no} out of bounds (capacity: {})", self.cap);
         }
 
-        let is_already_set = BitSetMut::set(&mut self.bitmap, no as usize).unwrap();
-        if !is_already_set {
-            self.len += 1;
-
-            if no == self.filled_upto {
-                self.advance_filled_upto();
-            }
+        if no < self.filled_upto {
+            return Ok(true);
         }
-        Ok(is_already_set)
+
+        let slot_idx = self.slot_idx(no);
+        let mask = 1u8 << (no % 8);
+
+        if slot_idx >= self.window.len() {
+            self.window.resize(slot_idx + 1, 0);
+        }
+
+        let slot = &mut self.window[slot_idx];
+
+        let already_set = *slot & mask != 0;
+
+        if already_set {
+            return Ok(true);
+        }
+
+        *slot |= mask;
+        self.len += 1;
+
+        if no == self.filled_upto {
+            self.advance_filled_upto();
+            self.remove_filled_bytes();
+        }
+
+        Ok(false)
     }
 
     pub fn is_full(&self) -> bool {
         self.len == self.cap
     }
 
-    /// # TODO: Make It Faster
+    pub fn filled_upto(&self) -> u32 {
+        self.filled_upto
+    }
+
     fn advance_filled_upto(&mut self) {
-        while self.filled_upto < self.cap && self.has(self.filled_upto) {
-            self.filled_upto += 1;
+        while self.filled_upto < self.cap {
+            let idx = self.slot_idx(self.filled_upto);
+            let Some(&slot) = self.window.get(idx) else {
+                break;
+            };
+
+            let bit = self.filled_upto % 8;
+            let count = (slot >> bit).trailing_ones();
+
+            self.filled_upto += count;
+
+            if count < 8 - bit {
+                break; // hit an unset bit
+            }
         }
     }
 
-    pub fn filled_upto(&self) -> u32 {
-        self.filled_upto
+    fn remove_filled_bytes(&mut self) {
+        let full_bytes = (self.filled_upto / 8) as usize - self.base;
+        self.window.drain(..full_bytes);
+        self.base += full_bytes;
     }
 }
 
