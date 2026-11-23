@@ -133,9 +133,7 @@ where
             status.inc_total_count(frames.len() as u32);
 
             for (is_already_set, frame) in frames {
-                if self.maybe_send_regular_ack(&frame).await? {
-                    status.inc_regular_ack_count();
-                }
+                self.maybe_send_regular_ack(&frame).await?;
 
                 if is_already_set {
                     status.inc_duplicate_count();
@@ -146,7 +144,7 @@ where
             }
 
             if self.send_cumulative_ack_if_no_regular_ack_sent().await? {
-                status.inc_cumulative_ack_count();
+                status.inc_ack_count();
             }
 
             if self.bitset.is_full() {
