@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use anyhow::{Result, bail};
 
 #[derive(Debug)]
-pub struct FileBitSet {
+pub struct AckBitSet {
     window: VecDeque<u8>,
     /// Number of bytes already dropped from the front. Every bit in them was set.
     ///
@@ -16,7 +16,7 @@ pub struct FileBitSet {
     filled_upto: u32,
 }
 
-impl FileBitSet {
+impl AckBitSet {
     pub fn new(cap: u32) -> Self {
         Self::new_with(cap, 0).unwrap()
     }
@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn bit_set_filled_upto() {
         let size = 9999;
-        let mut s = FileBitSet::new(size);
+        let mut s = AckBitSet::new(size);
 
         let mut nums: Vec<u32> = (0..size).collect();
         for curr in nums.chunks_mut(200) {
@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_filled_len() {
-        let mut s = FileBitSet::new(100);
+        let mut s = AckBitSet::new(100);
 
         assert!(s.set(100).is_err());
 

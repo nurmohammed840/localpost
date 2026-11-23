@@ -1,8 +1,11 @@
+mod ack_bitset;
 mod ack_policy;
 mod status;
 
+pub use ack_bitset::AckBitSet;
+
 use crate::{
-    file::{AsyncFileWriter, FileBitSet, FileWriter},
+    file::{AsyncFileWriter, FileWriter},
     protocol::{AckFrame, DataFrame, DataFrameLike, ErrorCode, ErrorFrame, FileInfo},
     socket::AsyncDatagramSocket as DatagramSocket,
 };
@@ -19,7 +22,7 @@ pub use status::RecvStatus;
 pub struct FileReceiver<S> {
     socket: S,
     writer: AsyncFileWriter,
-    bitset: FileBitSet,
+    bitset: AckBitSet,
     ack_policy: AckPolicy,
 
     frame_size: u16,
@@ -38,7 +41,7 @@ where
             writer: AsyncFileWriter::new(writer, 32 * 1024 * 1024),
             socket,
             ack_policy: AckPolicy::default(),
-            bitset: FileBitSet::new(file_info.num_of_frames()),
+            bitset: AckBitSet::new(file_info.num_of_frames()),
             frame_size: file_info.frame_size,
             flush_threshold: 32 * 1024 * 1024,
         }
