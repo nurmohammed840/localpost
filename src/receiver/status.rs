@@ -57,12 +57,11 @@ impl RecvStatus {
 impl fmt::Debug for RecvStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (total, duplicate) = self.total_and_duplicate_count();
-        let acks = self.ack_count();
         f.debug_struct("RecvStatus")
             .field("total", &total)
             .field("duplicate", &duplicate)
             .field("received", &total.saturating_sub(duplicate as u64))
-            .field("acks", &acks)
+            .field("acks", &self.ack_count())
             .finish()
     }
 }
