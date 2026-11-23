@@ -77,42 +77,19 @@ impl FlowControl {
     }
 
     pub fn mark_as_complete(&mut self, ack: &AckFrame) -> RTTs {
-        let mut current: Option<Instant> = None;
-        let mut cumulative: Option<Instant> = None;
-        let mut removed = 0;
+        let mut filter = AckFilter::new(&ack);
 
-        // TODO: replace with `[VecDeque::extract_if]`
-        let mut f = |p: &Payload| {
-            let no = p.data.no();
+        self.in_flight.retain(|p| filter.retain(p));
+        self.queued_in_flight.retain(|p| filter.retain(p));
+        self.lost_in_flight.retain(|p| filter.retain(p));
 
-            let is_selective_acked = ack.is_selective_acked(no);
-            let is_acked = is_selective_acked || ack.is_cumulative_acked(no);
-
-            if !is_acked {
-                return true; // keep
-            }
-
-            if is_selective_acked {
-                current = Some(p.send_at)
-            } else {
-                cumulative = Some(p.send_at)
-            }
-
-            removed += 1;
-            false
-        };
-
-        self.in_flight.retain(&mut f);
-        self.queued_in_flight.retain(&mut f);
-        self.lost_in_flight.retain(&mut f);
-
-        if removed != 0 && self.remaining_capacity() > self.reuse_free_space {
-            self.reuse_free_space += removed;
+        if filter.removed != 0 && self.remaining_capacity() > self.reuse_free_space {
+            self.reuse_free_space += filter.removed;
         }
 
         RTTs {
-            current,
-            cumulative,
+            current: filter.current,
+            cumulative: filter.cumulative,
         }
     }
 
@@ -159,6 +136,44 @@ impl FlowControl {
     }
 }
 
+struct AckFilter<'a> {
+    ack: &'a AckFrame,
+    current: Option<Instant>,
+    cumulative: Option<Instant>,
+    removed: usize,
+}
+
+impl<'a> AckFilter<'a> {
+    fn new(ack: &'a AckFrame) -> Self {
+        Self {
+            ack,
+            current: None,
+            cumulative: None,
+            removed: 0,
+        }
+    }
+
+    fn retain(&mut self, p: &Payload) -> bool {
+        let no = p.data.no();
+
+        let is_cumulative_acked = self.ack.is_cumulative_acked(no);
+        let is_acked = is_cumulative_acked || self.ack.is_selective_acked(no);
+
+        if !is_acked {
+            return true; // keep
+        }
+
+        if is_cumulative_acked {
+            self.cumulative = Some(p.send_at);
+        } else {
+            self.current = Some(p.send_at);
+        }
+
+        self.removed += 1;
+        false
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct LostList {
     set: Vec<Payload>,
@@ -184,34 +199,13 @@ impl LostList {
     }
 
     pub fn mark_as_complete(&mut self, ack: AckFrame) -> RTTs {
-        let mut current: Option<Instant> = None;
-        let mut cumulative: Option<Instant> = None;
+        let mut filter = AckFilter::new(&ack);
 
-        // TODO: replace with `[VecDeque::extract_if]`
-        let f = |p: &Payload| {
-            let no = p.data.no();
-
-            let is_selective_acked = ack.is_selective_acked(no);
-            let is_acked = is_selective_acked || ack.is_cumulative_acked(no);
-
-            if !is_acked {
-                return true; // keep
-            }
-
-            if is_selective_acked {
-                current = Some(p.send_at)
-            } else {
-                cumulative = Some(p.send_at)
-            }
-
-            false
-        };
-
-        self.set.retain(f);
+        self.set.retain(|p| filter.retain(p));
 
         RTTs {
-            current,
-            cumulative,
+            current: filter.current,
+            cumulative: filter.cumulative,
         }
     }
 }
