@@ -117,15 +117,8 @@ impl fmt::Debug for DataFrame {
 }
 
 pub trait DataFrameLike {
-    /// length of bytes slice must be >= 8
+    /// length of bytes slice must be >= 4
     fn as_bytes(&self) -> &[u8];
-
-    fn ack(&self, cumulative: u32) -> AckFrame {
-        AckFrame {
-            current: Some(self.no()),
-            cumulative,
-        }
-    }
 
     fn no(&self) -> u32 {
         u32::from_le_bytes(self.as_bytes()[0..4].try_into().unwrap())
@@ -165,10 +158,10 @@ impl DataFrame {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct AckFrame {
-    cumulative: u32,
-    current: Option<u32>,
+    pub cumulative: u32,
+    pub bitset: Box<[u8]>,
 }
 
 impl TryFrom<&[u8]> for AckFrame {
@@ -176,48 +169,30 @@ impl TryFrom<&[u8]> for AckFrame {
 
     fn try_from(bytes: &[u8]) -> Result<Self> {
         let len = bytes.len();
-        if len != 4 && len != 8 {
-            bail!("invalid ack frame length: {len} (expected 4 or 8)",);
+        if len < 4 {
+            bail!("invalid ack frame length: {len}",);
         }
 
         Ok(Self {
             cumulative: u32::from_le_bytes(bytes[..4].try_into()?),
-            current: if len == 8 {
-                Some(u32::from_le_bytes(bytes[4..].try_into()?))
-            } else {
-                None
-            },
+            bitset: Box::new([]),
         })
     }
 }
 
 impl AckFrame {
-    pub fn new(cumulative: u32, no: Option<u32>) -> Self {
-        Self {
-            cumulative,
-            current: no,
-        }
-    }
-
-    pub fn no(&self) -> Option<u32> {
-        self.current
-    }
-
     /// The length of contiguous sequence of frames received by the receiver in order.
     ///
     /// For example: If frames arrive in the order `2, 1, 4, 0, 5`
     /// Then cumulative length is `3`, Since frames `0, 1, 2` have been received.
-    /// while frame `3` is missing.
     pub fn cumulative_len(&self) -> u32 {
         self.cumulative
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(8);
+        let mut buf = Vec::with_capacity(4 + self.bitset.len());
         buf.extend_from_slice(&self.cumulative.to_le_bytes());
-        if let Some(current) = self.current {
-            buf.extend_from_slice(&current.to_le_bytes());
-        }
+        buf.extend_from_slice(&self.bitset);
         buf
     }
 }

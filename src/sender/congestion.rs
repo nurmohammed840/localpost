@@ -76,7 +76,7 @@ impl FlowControl {
         }
     }
 
-    pub fn mark_as_complete(&mut self, ack: AckFrame) -> RTTs {
+    pub fn mark_as_complete(&mut self, ack: &AckFrame) -> RTTs {
         let mut current: Option<Instant> = None;
         let mut cumulative: Option<Instant> = None;
         let mut removed = 0;
@@ -85,14 +85,14 @@ impl FlowControl {
         let mut f = |p: &Payload| {
             let no = p.data.no();
 
-            let is_frame_acknowledged = ack.no().is_some_and(|ack_no| ack_no == no);
+            let is_selective_acked = ack.is_selective_acked(no);
+            let is_acked = is_selective_acked || ack.is_cumulative_acked(no);
 
-            let acked = is_frame_acknowledged || no < ack.cumulative_len();
-            if !acked {
+            if !is_acked {
                 return true; // keep
             }
 
-            if is_frame_acknowledged {
+            if is_selective_acked {
                 current = Some(p.send_at)
             } else {
                 cumulative = Some(p.send_at)
@@ -191,14 +191,14 @@ impl LostList {
         let f = |p: &Payload| {
             let no = p.data.no();
 
-            let is_frame_acknowledged = ack.no().is_some_and(|ack_no| ack_no == no);
+            let is_selective_acked = ack.is_selective_acked(no);
+            let is_acked = is_selective_acked || ack.is_cumulative_acked(no);
 
-            let acked = is_frame_acknowledged || no < ack.cumulative_len();
-            if !acked {
+            if !is_acked {
                 return true; // keep
             }
 
-            if is_frame_acknowledged {
+            if is_selective_acked {
                 current = Some(p.send_at)
             } else {
                 cumulative = Some(p.send_at)
@@ -245,7 +245,14 @@ mod tests {
         }
 
         fn on_ack(&mut self, no: u32) {
-            self.mark_as_complete(AckFrame::new(0, Some(no)));
+            let byte = (no / 8) as usize;
+            let mut bitset = vec![0u8; byte + 1];
+            bitset[byte] = 1 << (no % 8);
+
+            self.mark_as_complete(&AckFrame {
+                cumulative: 0,
+                bitset: bitset.into(),
+            });
         }
 
         fn mark_as_lost(&mut self, no: u32) {
@@ -392,7 +399,7 @@ mod tests {
 
         let mut lost_list = c.collect_lost_frames().unwrap();
 
-        println!("c: {:#?}", c);
+        // println!("c: {:#?}", c);
 
         assert_eq!(c.step, 0);
         assert_eq!(c.capacity, 6);

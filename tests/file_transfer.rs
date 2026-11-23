@@ -4,9 +4,12 @@ use localpost::{
     protocol::FileInfo,
     receiver::{FileReceiver, RecvStatus},
     sender::{FileSender, SendStatus},
-    socket::async_udp::UdpSocket,
+    socket::{AsyncDatagramSocket, async_udp::UdpSocket},
 };
-use std::io::{self, Read, Seek, SeekFrom, Write};
+use std::{
+    io::{self, Read, Seek, SeekFrom, Write},
+    time::Duration,
+};
 
 #[derive(Default)]
 struct MockFile {
@@ -53,6 +56,9 @@ fn test_file_transfer() -> Result<()> {
     block_on(async || {
         let sender = UdpSocket::bind("127.0.0.1:0").await?;
         let receiver = UdpSocket::bind("127.0.0.1:0").await?;
+
+        sender.set_read_timeout(Some(Duration::from_secs(3)))?;
+        receiver.set_read_timeout(Some(Duration::from_secs(3)))?;
 
         sender.socket.connect(receiver.socket.local_addr()?).await?;
         receiver.socket.connect(sender.socket.local_addr()?).await?;

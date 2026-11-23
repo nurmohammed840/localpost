@@ -114,7 +114,7 @@ where
 
                 self.last_seen = Instant::now();
                 self.outgoing
-                    .mark_as_complete(ack)
+                    .mark_as_complete(&ack)
                     .chain(self.lost_list.mark_as_complete(ack))
             });
 

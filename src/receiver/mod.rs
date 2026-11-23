@@ -1,5 +1,4 @@
 mod ack_bitset;
-mod ack_policy;
 mod status;
 
 pub use ack_bitset::AckBitSet;
@@ -9,7 +8,6 @@ use crate::{
     protocol::{AckFrame, DataFrame, DataFrameLike, ErrorCode, ErrorFrame, FileInfo},
     socket::AsyncDatagramSocket as DatagramSocket,
 };
-use ack_policy::AckPolicy;
 use anyhow::{Context, Result};
 use std::{
     io::{Seek, Write},
@@ -23,7 +21,6 @@ pub struct FileReceiver<S> {
     socket: S,
     writer: AsyncFileWriter,
     bitset: AckBitSet,
-    ack_policy: AckPolicy,
 
     frame_size: u16,
     pub flush_threshold: usize,
@@ -40,7 +37,6 @@ where
         Self {
             writer: AsyncFileWriter::new(writer, 32 * 1024 * 1024),
             socket,
-            ack_policy: AckPolicy::default(),
             bitset: AckBitSet::new(file_info.num_of_frames()),
             frame_size: file_info.frame_size,
             flush_threshold: 32 * 1024 * 1024,
@@ -64,24 +60,6 @@ where
             .await
             .or_else(|err| self.bitset.is_full().ok_or(err))
             .context("failed to send acknowledgement")
-    }
-
-    async fn maybe_send_regular_ack(&mut self, frame: &DataFrame) -> Result<bool> {
-        let cumulative = self.bitset.filled_upto();
-        if let Some(ack) = self.ack_policy.on_frame_received(cumulative, frame.no()) {
-            self.send_ack(ack).await?;
-            return Ok(true);
-        }
-        Ok(false)
-    }
-
-    async fn send_cumulative_ack_if_no_regular_ack_sent(&mut self) -> Result<bool> {
-        let cumulative = self.bitset.filled_upto();
-        if let Some(ack) = self.ack_policy.send_ack_if_not_sent(cumulative) {
-            self.send_ack(ack).await?;
-            return Ok(true);
-        }
-        Ok(false)
     }
 
     pub async fn send_fin_frame(secket: S, frame: &[u8]) -> Result<()> {
@@ -125,18 +103,13 @@ where
     pub async fn _init_receive(&mut self, status: Arc<RecvStatus>) -> Result<()> {
         loop {
             let packets = self.recv_packets().await?;
-            let mut frames = Vec::with_capacity(packets.len());
+
+            status.inc_total_count(packets.len() as u32);
 
             // This loop update bitset before sending acknowledgement
             for packet in packets {
                 let frame = DataFrame::try_from(packet)?;
-                frames.push((self.bitset.set(frame.no())?, frame));
-            }
-
-            status.inc_total_count(frames.len() as u32);
-
-            for (is_already_set, frame) in frames {
-                self.maybe_send_regular_ack(&frame).await?;
+                let is_already_set = self.bitset.set(frame.no())?;
 
                 if is_already_set {
                     status.inc_duplicate_count();
@@ -146,9 +119,9 @@ where
                 self.writer.write(frame).await?;
             }
 
-            if self.send_cumulative_ack_if_no_regular_ack_sent().await? {
-                status.inc_ack_count();
-            }
+            let ack = self.bitset.ack_frame();
+            self.send_ack(ack).await?;
+            status.inc_ack_count();
 
             if self.bitset.is_full() {
                 return Ok(());
