@@ -76,7 +76,7 @@ impl FlowControl {
         }
     }
 
-    pub fn mark_as_complete(&mut self, ack: &AckFrame) -> RTTs {
+    pub fn mark_as_complete(&mut self, ack: &AckFrame) -> Option<Instant> {
         let mut filter = AckFilter::new(&ack);
 
         self.in_flight.retain(|p| filter.retain(p));
@@ -87,10 +87,7 @@ impl FlowControl {
             self.reuse_free_space += filter.removed;
         }
 
-        RTTs {
-            current: filter.current,
-            cumulative: filter.cumulative,
-        }
+        filter.rtt
     }
 
     pub fn process_lost(&mut self, rto: Duration) {
@@ -138,8 +135,7 @@ impl FlowControl {
 
 struct AckFilter<'a> {
     ack: &'a AckFrame,
-    current: Option<Instant>,
-    cumulative: Option<Instant>,
+    rtt: Option<Instant>,
     removed: usize,
 }
 
@@ -147,8 +143,7 @@ impl<'a> AckFilter<'a> {
     fn new(ack: &'a AckFrame) -> Self {
         Self {
             ack,
-            current: None,
-            cumulative: None,
+            rtt: None,
             removed: 0,
         }
     }
@@ -156,19 +151,11 @@ impl<'a> AckFilter<'a> {
     fn retain(&mut self, p: &Payload) -> bool {
         let no = p.data.no();
 
-        let is_cumulative_acked = self.ack.is_cumulative_acked(no);
-        let is_acked = is_cumulative_acked || self.ack.is_selective_acked(no);
-
-        if !is_acked {
+        if !self.ack.is_acked(no) {
             return true; // keep
         }
 
-        if is_cumulative_acked {
-            self.cumulative = Some(p.send_at);
-        } else {
-            self.current = Some(p.send_at);
-        }
-
+        self.rtt = Some(p.send_at);
         self.removed += 1;
         false
     }
@@ -198,28 +185,10 @@ impl LostList {
         self.set.is_empty()
     }
 
-    pub fn mark_as_complete(&mut self, ack: AckFrame) -> RTTs {
+    pub fn mark_as_complete(&mut self, ack: AckFrame) -> Option<Instant> {
         let mut filter = AckFilter::new(&ack);
-
         self.set.retain(|p| filter.retain(p));
-
-        RTTs {
-            current: filter.current,
-            cumulative: filter.cumulative,
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct RTTs {
-    current: Option<Instant>,
-    cumulative: Option<Instant>,
-}
-
-impl Iterator for RTTs {
-    type Item = Instant;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.current.take().or_else(|| self.cumulative.take())
+        filter.rtt
     }
 }
 
