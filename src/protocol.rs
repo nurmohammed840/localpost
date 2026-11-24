@@ -168,14 +168,13 @@ impl TryFrom<&[u8]> for AckFrame {
     type Error = anyhow::Error;
 
     fn try_from(bytes: &[u8]) -> Result<Self> {
-        let len = bytes.len();
-        if len < 4 {
-            bail!("invalid ack frame length: {len}",);
-        }
+        let Some((cumulative, bitset)) = bytes.split_first_chunk::<4>() else {
+            bail!("invalid ack frame length: {}", bytes.len());
+        };
 
         Ok(Self {
-            cumulative: u32::from_le_bytes(bytes[..4].try_into()?),
-            bitset: Box::new([]),
+            cumulative: u32::from_le_bytes(*cumulative),
+            bitset: bitset.into(),
         })
     }
 }
