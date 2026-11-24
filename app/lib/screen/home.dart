@@ -106,7 +106,7 @@ class ConnectionWidget extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: .start,
           children: [
-            Text(connection.serverAddr),
+            Text(connection.peerServerAddr),
             Text('${info.osName} ${info.osVersion}'),
             Text('${info.osType} • ${info.architecture}'),
           ],

@@ -20,15 +20,17 @@ class ServerAddr(final String addr, final String qr) extends ServerState {
 }
 
 class const Connection(
-  final String serverAddr,
+  final String peerServerAddr,
+  final String peerAddr,
   final ResEndpoint endpoint,
   final SystemInfo systemInfo,
 ) {
   Future disconnect() async {
     try {
       connections.update((list) {
-        list.removeWhere((connection) => connection.serverAddr == serverAddr);
+        list.removeWhere((connection) => connection.peerAddr == peerAddr);
       });
+
       await endpoint.disconnect();
     } catch (error) {
       showErrorSnackBar(error);
@@ -87,9 +89,16 @@ Future runServer(int port) async {
       (conn) async {
         final (connection, systemInfo) = conn;
         try {
-          final (endpoint, addr) = await connection.handshake();
+          final (endpoint, peerAddr) = await connection.handshake();
+          final peerServerAddr = "${peerAddr.split(':')[0]}:${systemInfo.port}";
 
-          final conn = Connection(addr, endpoint, systemInfo);
+          final conn = Connection(
+            peerServerAddr,
+            peerAddr,
+            endpoint,
+            systemInfo,
+          );
+
           connections.update((list) => list.add(conn));
           acceptRequests(conn);
         } catch (error) {
@@ -102,7 +111,7 @@ Future runServer(int port) async {
   }
 }
 
-Future openConnection(String addr, {int timeoutMs = 3 * 1000}) async {
+Future openConnection(String peerServerAddr, {int timeoutMs = 3 * 1000}) async {
   try {
     final port = switch (serverState.value) {
       ServerAddr(:final port) => port,
@@ -110,23 +119,23 @@ Future openConnection(String addr, {int timeoutMs = 3 * 1000}) async {
     };
 
     final (endpoint, systemInfo) = await ResEndpoint.open(
-      addr: addr,
+      addr: peerServerAddr,
       timeoutMs: BigInt.from(timeoutMs),
       serverPort: port,
     );
 
-    final conn = Connection(addr, endpoint, systemInfo);
+    final conn = Connection(
+      peerServerAddr,
+      peerServerAddr,
+      endpoint,
+      systemInfo,
+    );
+
     connections.update((list) => list.add(conn));
     acceptRequests(conn);
   } catch (error) {
     showErrorSnackBar(error);
   }
-}
-
-void removeConnection(String addr) {
-  connections.update((list) {
-    list.removeWhere((connection) => connection.serverAddr == addr);
-  });
 }
 
 void acceptRequests(Connection endpoint) {
