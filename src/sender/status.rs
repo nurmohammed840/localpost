@@ -1,11 +1,13 @@
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::{fmt, sync::Arc};
 
+use crate::status::AckCounter;
+
 #[derive(Default)]
 pub struct SendStatus {
+    pub ack_counter: AckCounter,
     sent: AtomicU64,
     lost: AtomicU32,
-    acks: AtomicU32,
 }
 
 impl SendStatus {
@@ -21,20 +23,12 @@ impl SendStatus {
         self.lost.fetch_add(num as u32, Relaxed);
     }
 
-    pub fn inc_ack_count(&self) {
-        self.acks.fetch_add(1, Relaxed);
-    }
-
     pub fn sent(&self) -> u64 {
         self.sent.load(Relaxed)
     }
 
     pub fn lost(&self) -> u32 {
         self.lost.load(Relaxed)
-    }
-
-    pub fn ack_count(&self) -> u32 {
-        self.acks.load(Relaxed)
     }
 }
 
@@ -43,7 +37,7 @@ impl fmt::Debug for SendStatus {
         f.debug_struct("SendStatus")
             .field("sent", &self.sent())
             .field("lost", &self.lost())
-            .field("acks", &self.ack_count())
+            .field("acks", &self.ack_counter)
             .finish()
     }
 }

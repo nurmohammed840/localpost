@@ -110,7 +110,7 @@ where
             }
 
             let rtts = ack?.map(|ack| {
-                status.inc_ack_count();
+                status.ack_counter.increase(&ack);
 
                 self.last_seen = Instant::now();
                 self.outgoing

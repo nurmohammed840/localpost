@@ -120,8 +120,8 @@ where
             }
 
             let ack = self.bitset.ack_frame();
+            status.ack_counter.increase(&ack);
             self.send_ack(ack).await?;
-            status.inc_ack_count();
 
             if self.bitset.is_full() {
                 return Ok(());

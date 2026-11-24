@@ -12,3 +12,4 @@ pub mod protocol;
 pub mod receiver;
 pub mod sender;
 pub mod socket;
+pub mod status;

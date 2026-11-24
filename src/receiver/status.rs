@@ -1,5 +1,7 @@
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 use std::{fmt, sync::Arc};
+
+use crate::status::AckCounter;
 
 const DUPLICATE_BITS: u32 = 31;
 const TOTAL_SHIFT: u32 = DUPLICATE_BITS;
@@ -7,11 +9,11 @@ const DUPLICATE_MASK: u64 = (1 << DUPLICATE_BITS) - 1;
 
 #[derive(Default)]
 pub struct RecvStatus {
+    pub ack_counter: AckCounter,
     // high 33 bits = total (every packet seen, duplicates included)
     // low  31 bits = duplicate
     // received = total - duplicate
     state: AtomicU64,
-    acks: AtomicU32,
 }
 
 impl RecvStatus {
@@ -25,14 +27,6 @@ impl RecvStatus {
 
     pub fn inc_duplicate_count(&self) {
         self.state.fetch_add(1, Relaxed);
-    }
-
-    pub fn inc_ack_count(&self) {
-        self.acks.fetch_add(1, Relaxed);
-    }
-
-    pub fn ack_count(&self) -> u32 {
-        self.acks.load(Relaxed)
     }
 
     pub fn total_count(&self) -> u64 {
@@ -61,7 +55,7 @@ impl fmt::Debug for RecvStatus {
             .field("total", &total)
             .field("duplicate", &duplicate)
             .field("received", &total.saturating_sub(duplicate as u64))
-            .field("acks", &self.ack_count())
+            .field("acks", &self.ack_counter)
             .finish()
     }
 }
