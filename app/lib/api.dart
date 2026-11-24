@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart';
 import 'package:localpost/core/signal.dart';
 import 'package:localpost/dialog/error_snackbar.dart';
 import 'package:localpost/os/android_file_picker.dart';
@@ -113,15 +114,25 @@ Future runServer(int port) async {
 
 Future openConnection(String peerServerAddr, {int timeoutMs = 3 * 1000}) async {
   try {
-    final port = switch (serverState.value) {
-      ServerAddr(:final port) => port,
+    if (connections.value.any(
+      (connection) => connection.peerServerAddr == peerServerAddr,
+    )) {
+      throw 'Already connected to $peerServerAddr';
+    }
+
+    final myServer = switch (serverState.value) {
+      final ServerAddr ip => ip,
       _ => throw 'Server is not running',
     };
+
+    if (kReleaseMode && peerServerAddr == myServer.addr) {
+      throw "Cannot connect to self";
+    }
 
     final (endpoint, systemInfo) = await ResEndpoint.open(
       addr: peerServerAddr,
       timeoutMs: BigInt.from(timeoutMs),
-      serverPort: port,
+      serverPort: myServer.port,
     );
 
     final conn = Connection(
