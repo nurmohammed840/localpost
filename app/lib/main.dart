@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:localpost/api.dart';
-import 'package:localpost/constraints.dart';
 import 'package:localpost/core/signal.dart';
 import 'package:localpost/dialog/error_snackbar.dart';
 import 'package:localpost/page/settings.dart';
@@ -13,7 +12,7 @@ Future main() async {
   runApp(const MyApp());
 
   await Settings.load();
-  await runServer(defaultPort);
+  await runServer();
 }
 
 class MyApp extends StatelessWidget {

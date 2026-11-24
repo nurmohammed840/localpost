@@ -73,8 +73,12 @@ class FileRequest(final FileInfo fileInfo, final ResFile request) {
   }
 }
 
-Future runServer(int port) async {
+Future runServer({int port = 53971}) async {
   try {
+    if (serverState.value is ServerAddr) {
+      throw 'Server is already running';
+    }
+
     serverState.set(ServerLoading());
     final (server, addr, qr) = await Server.bind(port: port);
     serverState.set(ServerAddr(addr, qr));

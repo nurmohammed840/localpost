@@ -47,7 +47,7 @@ class ServerClosedView extends StatelessWidget {
       ),
       Text(message, textAlign: .center),
       FilledButton.icon(
-        onPressed: () {},
+        onPressed: runServer,
         icon: const Icon(Icons.refresh),
         label: const Text('Reload'),
       ),

@@ -1,13 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:localpost/constraints.dart';
 import 'package:localpost/core/lifecycle.dart';
 import 'package:localpost/utils.dart';
 
 Future<String?> promptIPAddr(
   BuildContext ctx, {
   String ipAddr = '192.168.0.1',
-  int port = defaultPort,
+  int port = 53971,
 }) {
   if (kReleaseMode) {
     ipAddr = ipAddr.substring(0, ipAddr.length - 1);
