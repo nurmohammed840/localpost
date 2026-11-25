@@ -208,9 +208,9 @@ mod tests {
         }
 
         fn on_ack(&mut self, no: u32) {
-            let byte = (no / 8) as usize;
-            let mut bitset = vec![0u8; byte + 1];
-            bitset[byte] = 1 << (no % 8);
+            let idx = (no / 8) as usize;
+            let mut bitset = vec![0u8; idx + 1];
+            bitset[idx] = 1 << (no % 8);
 
             self.mark_as_complete(&AckFrame {
                 cumulative: 0,

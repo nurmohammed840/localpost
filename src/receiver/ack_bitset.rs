@@ -116,13 +116,13 @@ impl AckBitSet {
     pub fn ack_frame(&self) -> AckFrame {
         let shift = self.filled_upto % 8; // 0..=7 bits to shift
 
-        let has_ahead = match self.window.len() {
-            0 => false,
-            1 => self.window[0] >> shift != 0,
-            _ => true,
+        let no_ahead = match self.window.len() {
+            0 => true,
+            1 => self.window[0] >> shift == 0,
+            _ => false,
         };
 
-        if !has_ahead {
+        if no_ahead {
             return AckFrame {
                 cumulative: self.filled_upto,
                 bitset: Box::default(),
