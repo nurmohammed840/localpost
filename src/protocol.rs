@@ -153,7 +153,7 @@ impl DataFrame {
 
     pub fn try_from(buf: Box<[u8]>) -> Result<Self> {
         let frame = Self { buf };
-        ErrorFrame::check(&frame)?;
+        FrameType::check(&frame)?;
         Ok(frame)
     }
 }
@@ -197,79 +197,50 @@ impl AckFrame {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ErrorCode {
+#[derive(Debug, Clone)]
+pub enum FrameType {
     Unknown(u8) = 0,
-    /// On Error (String)
-    Abort = 1,
-    /// Final Acknowledgment (No Data)
+
+    /// Sent acknowledge on any Error
+    Abort(String) = 1,
+
+    /// Final Acknowledgment
     FinAck = 2,
 
     /// Error was received from the peer.
     /// The current send/receive operation should be stopped.
     /// We may sent acknowledge receipt of the peer's error.
-    /// (No Data)
     AckError = 3,
 }
 
-impl From<ErrorCode> for u8 {
-    fn from(code: ErrorCode) -> Self {
-        match code {
-            ErrorCode::Abort => 1,
-            ErrorCode::FinAck => 2,
-            ErrorCode::AckError => 3,
-            ErrorCode::Unknown(code) => code,
-        }
-    }
-}
-
-impl From<u8> for ErrorCode {
-    fn from(code: u8) -> Self {
-        match code {
-            1 => Self::Abort,
-            2 => Self::FinAck,
-            3 => Self::AckError,
-            code => Self::Unknown(code),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ErrorFrame {
-    pub code: ErrorCode,
-    pub msg: String,
-}
-
-impl From<ErrorCode> for ErrorFrame {
-    fn from(code: ErrorCode) -> Self {
-        ErrorFrame::new(code, String::new())
-    }
-}
-
-impl Error for ErrorFrame {}
-impl fmt::Display for ErrorFrame {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.msg.fmt(f)
-    }
-}
-
-impl ErrorFrame {
+impl FrameType {
     pub fn is_fin_ack(&self) -> bool {
-        matches!(self.code, ErrorCode::FinAck)
+        matches!(self, Self::FinAck)
     }
 
-    pub fn new(code: impl Into<ErrorCode>, msg: impl Into<String>) -> Self {
-        Self {
-            code: code.into(),
-            msg: msg.into(),
+    fn code(&self) -> u8 {
+        match self {
+            Self::Abort(_) => 1,
+            Self::FinAck => 2,
+            Self::AckError => 3,
+            Self::Unknown(code) => *code,
+        }
+    }
+
+    fn data(&self) -> &[u8] {
+        match self {
+            Self::Abort(msg) => msg.as_bytes(),
+            _ => &[],
         }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(4 + 1 + self.msg.len());
+        let data = self.data();
+
+        let mut buf = Vec::with_capacity(4 + 1 + data.len());
         buf.extend_from_slice(&u32::MAX.to_le_bytes());
-        buf.push(self.code.into());
-        buf.extend_from_slice(self.msg.as_bytes());
+        buf.push(self.code());
+        buf.extend_from_slice(data);
         buf
     }
 
@@ -281,12 +252,26 @@ impl ErrorFrame {
         if frame.no() != u32::MAX {
             return Ok(());
         }
+
         let mut data = frame.data();
         let code: u8 =
             Decode::decode(&mut data).map_err(|e| anyhow!("failed to decode frame: {e}"))?;
 
-        let msg = String::from_utf8(data.to_vec())?;
-        Err(Self::new(code, msg).into())
+        let error = match code {
+            1 => Self::Abort(str::from_utf8(data)?.to_owned()),
+            2 => Self::FinAck,
+            3 => Self::AckError,
+            _ => Self::Unknown(code),
+        };
+
+        Err(error.into())
+    }
+}
+
+impl Error for FrameType {}
+impl fmt::Display for FrameType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
     }
 }
 
@@ -311,11 +296,10 @@ mod tests {
 
     #[test]
     fn error_frame_check() -> Result<()> {
-        let err = ErrorFrame::new(42, "Hello, World!");
-        let err = ErrorFrame::check(err.to_bytes()).err().unwrap();
-        let err = err.downcast_ref::<ErrorFrame>().unwrap();
-        assert_eq!(err.code, ErrorCode::Unknown(42));
-        assert_eq!(err.msg, "Hello, World!");
+        let err = FrameType::Unknown(42);
+        let err = FrameType::check(err.to_bytes()).err().unwrap();
+        let err = err.downcast_ref::<FrameType>().unwrap();
+        assert_eq!(err.code(), 42);
         Ok(())
     }
 }

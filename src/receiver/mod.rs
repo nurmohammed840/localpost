@@ -5,7 +5,7 @@ pub use ack_bitset::AckBitSet;
 
 use crate::{
     file::{AsyncFileWriter, FileWriter},
-    protocol::{AckFrame, DataFrame, DataFrameLike, ErrorCode, ErrorFrame, FileInfo},
+    protocol::{AckFrame, DataFrame, DataFrameLike, FrameType, FileInfo},
     socket::AsyncDatagramSocket as DatagramSocket,
 };
 use anyhow::{Context, Result};
@@ -84,10 +84,10 @@ where
         let socket = self.socket;
 
         let frame = match result {
-            Ok(_) => ErrorFrame::from(ErrorCode::FinAck),
-            Err(ref err) => match err.is::<ErrorFrame>() {
-                true => ErrorFrame::from(ErrorCode::AckError),
-                false => ErrorFrame::new(ErrorCode::Abort, err.to_string()),
+            Ok(_) => FrameType::FinAck,
+            Err(ref err) => match err.is::<FrameType>() {
+                true => FrameType::AckError,
+                false => FrameType::Abort(err.to_string()),
             },
         };
 

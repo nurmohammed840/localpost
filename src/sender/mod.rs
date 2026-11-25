@@ -6,7 +6,7 @@ pub mod rtt_estimator;
 
 use crate::{
     file::{AsyncFrameReader, FileReader},
-    protocol::{AckFrame, DataFrame, DataFrameLike, ErrorFrame},
+    protocol::{AckFrame, DataFrame, DataFrameLike, FrameType},
     socket::AsyncDatagramSocket as DatagramSocket,
 };
 use anyhow::{Result, bail};
@@ -66,7 +66,7 @@ where
         }?;
 
         let frame = &self.recv_buf[..len];
-        ErrorFrame::check(frame)?;
+        FrameType::check(frame)?;
         AckFrame::try_from(frame).map(Some)
     }
 
@@ -103,7 +103,7 @@ where
 
             let is_fin_ack = ack
                 .as_ref()
-                .is_err_and(|err| err.downcast_ref().is_some_and(ErrorFrame::is_fin_ack));
+                .is_err_and(|err| err.downcast_ref().is_some_and(FrameType::is_fin_ack));
 
             if is_fin_ack {
                 return Ok(());
