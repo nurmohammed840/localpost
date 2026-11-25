@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:localpost/core/lifecycle.dart';
-import 'package:localpost/utils.dart';
+import 'package:localpost/utils/input_formatter.dart';
 
 Future<String?> promptIPAddr(
   BuildContext ctx, {

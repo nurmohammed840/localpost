@@ -3,7 +3,7 @@ import 'dart:convert' show utf8;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:localpost/api.dart';
-import 'package:localpost/file_icon.dart';
+import 'package:localpost/utils/file_icon.dart';
 import 'package:localpost/widget/appbar.dart';
 
 class TransferScreen extends StatelessWidget {

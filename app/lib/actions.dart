@@ -3,7 +3,7 @@ import 'package:localpost/api.dart';
 import 'package:localpost/dialog/error_snackbar.dart';
 import 'package:localpost/dialog/prompt.dart';
 import 'package:localpost/page/qr_scanner.dart';
-import 'package:localpost/utils.dart';
+import 'package:localpost/utils/input_formatter.dart';
 
 Future connect(BuildContext ctx, String ipAddr) async {
   final addr = await promptIPAddr(ctx, ipAddr: ipAddr.split(':')[0]);
