@@ -200,8 +200,15 @@ impl AckFrame {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
     Unknown(u8) = 0,
+    /// On Error (String)
     Abort = 1,
+    /// Final Acknowledgment (No Data)
     FinAck = 2,
+
+    /// Error was received from the peer.
+    /// The current send/receive operation should be stopped.
+    /// We may sent acknowledge receipt of the peer's error.
+    /// (No Data)
     AckError = 3,
 }
 
