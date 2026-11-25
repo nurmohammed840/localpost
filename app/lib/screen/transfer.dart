@@ -3,6 +3,7 @@ import 'dart:convert' show utf8;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:localpost/api.dart';
+import 'package:localpost/file_icon.dart';
 import 'package:localpost/widget/appbar.dart';
 
 class TransferScreen extends StatelessWidget {
@@ -41,7 +42,7 @@ class TransferScreen extends StatelessWidget {
             shape: RoundedRectangleBorder(borderRadius: .circular(8)),
             child: ListTile(
               onTap: () {},
-              leading: const Icon(Icons.download, size: 32),
+              leading: Icon(fileIcon(fileName), size: 32),
               title: Text(fileName, maxLines: 1, overflow: .ellipsis),
               subtitle: Column(
                 crossAxisAlignment: .start,
