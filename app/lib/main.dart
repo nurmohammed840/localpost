@@ -64,20 +64,20 @@ class MainPage extends StatelessWidget {
 class TransferNavigationIcon extends StatelessWidget {
   const new({super.key});
 
-  Widget badge(IconData icon) => Badge(
-    alignment: .topRight,
-    offset: const Offset(8, -8),
-    isLabelVisible: fileRequests.value.isNotEmpty,
-    label: Text(fileRequests.value.length.toString()),
-    child: Icon(icon),
+  static Widget badge(IconData icon) => fileRequests.watch(
+    (_) => Badge(
+      alignment: .topRight,
+      offset: const Offset(8, -8),
+      isLabelVisible: fileRequests.value.isNotEmpty,
+      label: Text(fileRequests.value.length.toString()),
+      child: Icon(icon),
+    ),
   );
 
   @override
-  Widget build(BuildContext context) => fileRequests.watch(
-    (_) => NavigationDestination(
-      icon: badge(Icons.swap_vert_outlined),
-      selectedIcon: badge(Icons.swap_vert),
-      label: 'Transfer',
-    ),
+  Widget build(BuildContext context) => NavigationDestination(
+    icon: badge(Icons.swap_vert_outlined),
+    selectedIcon: badge(Icons.swap_vert),
+    label: 'Transfer',
   );
 }
