@@ -44,7 +44,7 @@ class MainPage extends StatelessWidget {
       selectedIcon: Icon(Icons.home),
       label: 'Home',
     ),
-    TransferIcon(),
+    TransferNavigationIcon(),
   ];
 
   @override
@@ -61,21 +61,19 @@ class MainPage extends StatelessWidget {
   );
 }
 
-class TransferIcon extends StatelessWidget {
+class TransferNavigationIcon extends StatelessWidget {
   const new({super.key});
-
-  static final count = CreateState(0);
 
   Widget badge(IconData icon) => Badge(
     alignment: .topRight,
     offset: const Offset(8, -8),
-    isLabelVisible: count.value > 0,
-    label: Text(count.value.toString()),
+    isLabelVisible: fileRequests.value.isNotEmpty,
+    label: Text(fileRequests.value.length.toString()),
     child: Icon(icon),
   );
 
   @override
-  Widget build(BuildContext context) => count.watch(
+  Widget build(BuildContext context) => fileRequests.watch(
     (_) => NavigationDestination(
       icon: badge(Icons.swap_vert_outlined),
       selectedIcon: badge(Icons.swap_vert),
