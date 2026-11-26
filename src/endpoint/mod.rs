@@ -17,6 +17,7 @@ use std::{
     fs::File,
     io::{Seek, Write},
     net::{SocketAddr, ToSocketAddrs},
+    rc::Rc,
     sync::Arc,
     time::Duration,
 };
@@ -191,26 +192,46 @@ impl FileRequest {
         status: Arc<RecvStatus>,
     ) -> Result<()> {
         let mut file_info = self.file_info().await?.clone();
-        let receiver = create_udp_socket(self.local_addr)?;
+        let receiver = Rc::new(create_udp_socket(self.local_addr)?);
         let sender_socket_addr = (self.peer_addr.ip(), file_info.tid.udp_port);
 
         receiver.socket.connect(sender_socket_addr).await?;
         file_info.tid.udp_port = receiver.socket.local_addr()?.port();
 
-        if self.mode == Mode::Client {
-            let signal_ready = FrameType::SignalReady(file_info.tid);
-            receiver.send(&signal_ready.to_bytes()?).await?;
-        }
+        let send_signal = {
+            let receiver = Rc::clone(&receiver);
+            let status = status.clone();
+
+            nio::spawn_local(async move {
+                match self.mode {
+                    Mode::Client => {
+                        let signal_ready = FrameType::SignalReady(file_info.tid).to_bytes()?;
+
+                        for _ in 0..10 {
+                            receiver.send(&signal_ready).await?;
+                            nio::sleep(Duration::from_millis(500)).await;
+
+                            if status.recv_count() > 0 {
+                                return anyhow::Ok(());
+                            }
+                        }
+
+                        bail!("no response");
+                    }
+                    Mode::Server => {
+                        self.stream.send_last_msg(file_info.tid).await?;
+                        drop(self.stream); // close read
+                    }
+                }
+                anyhow::Ok(())
+            })
+        };
 
         let writer = FileWriter::new(file, file_info.frame_size - 4);
         let receiver = FileReceiver::new(writer, receiver, &file_info);
         let task = nio::spawn_local(async { receiver.init_receive(status).await });
 
-        if self.mode == Mode::Server {
-            self.stream.send_last_msg(file_info.tid).await?;
-            drop(self.stream); // close read
-        }
-
+        send_signal.await??;
         task.await?
     }
 

@@ -5,6 +5,7 @@ use std::{
     future::poll_fn,
     io::{self, ErrorKind, Result},
     net::{SocketAddr, ToSocketAddrs},
+    rc::Rc,
     task::Poll,
     time::Duration,
 };
@@ -101,5 +102,30 @@ impl AsyncDatagramSocket for UdpSocket {
                 None => break Ok(()),
             }
         }
+    }
+}
+
+impl<T> AsyncDatagramSocket for Rc<T>
+where
+    T: AsyncDatagramSocket + ?Sized,
+{
+    fn set_read_timeout(&self, dur: Option<Duration>) -> Result<()> {
+        T::set_read_timeout(self, dur)
+    }
+
+    fn read_timeout(&self) -> Result<Option<Duration>> {
+        T::read_timeout(self)
+    }
+
+    async fn send(&self, buf: &[u8]) -> Result<()> {
+        T::send(self, buf).await
+    }
+
+    async fn recv(&self, buf: &mut [u8]) -> Result<usize> {
+        T::recv(self, buf).await
+    }
+
+    async fn recv_many(&self, bufs: &mut Vec<Box<[u8]>>, size: u16, limit: u8) -> Result<()> {
+        T::recv_many(self, bufs, size, limit).await
     }
 }
