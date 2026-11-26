@@ -204,6 +204,7 @@ impl FileRequest {
 
             nio::spawn_local(async move {
                 match self.mode {
+                    Mode::Server => self.stream.send_last_msg(file_info.tid).await,
                     Mode::Client => {
                         let signal_ready = FrameType::SignalReady(file_info.tid).to_bytes()?;
 
@@ -218,12 +219,7 @@ impl FileRequest {
 
                         bail!("no response");
                     }
-                    Mode::Server => {
-                        self.stream.send_last_msg(file_info.tid).await?;
-                        drop(self.stream); // close read
-                    }
                 }
-                Ok(())
             })
         };
 
