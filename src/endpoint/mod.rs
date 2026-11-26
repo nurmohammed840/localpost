@@ -212,7 +212,7 @@ impl FileRequest {
                             nio::sleep(Duration::from_millis(500)).await;
 
                             if status.recv_count() > 0 {
-                                return anyhow::Ok(());
+                                return Ok(());
                             }
                         }
 
@@ -223,7 +223,7 @@ impl FileRequest {
                         drop(self.stream); // close read
                     }
                 }
-                anyhow::Ok(())
+                Ok(())
             })
         };
 
