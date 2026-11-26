@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
 use lipi::{Decode, Encode};
 use std::{env::consts as SYS, error::Error, fmt, ops::RangeBounds};
 
@@ -211,6 +211,11 @@ pub enum FrameType {
     /// The current send/receive operation should be stopped.
     /// We may sent acknowledge receipt of the peer's error.
     AckError = 3,
+
+    /// Sent only by the client-side receiver to the server endpoint.
+    /// client initiates an outbound connection, allowing the server to send
+    /// data through the client's firewall.
+    SignalReady(TransferID) = 4,
 }
 
 impl FrameType {
@@ -223,25 +228,29 @@ impl FrameType {
             Self::Abort(_) => 1,
             Self::FinAck => 2,
             Self::AckError => 3,
+            Self::SignalReady(_) => 4,
             Self::Unknown(code) => *code,
         }
     }
 
-    fn data(&self) -> &[u8] {
-        match self {
-            Self::Abort(msg) => msg.as_bytes(),
-            _ => &[],
-        }
-    }
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        let size = match self {
+            FrameType::Abort(msg) => msg.as_bytes().len(),
+            _ => 0,
+        };
 
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let data = self.data();
+        let mut buf = Vec::with_capacity(4 + 1 + size);
 
-        let mut buf = Vec::with_capacity(4 + 1 + data.len());
         buf.extend_from_slice(&u32::MAX.to_le_bytes());
         buf.push(self.code());
-        buf.extend_from_slice(data);
-        buf
+
+        match self {
+            FrameType::Abort(msg) => buf.extend_from_slice(msg.as_bytes()),
+            FrameType::SignalReady(tid) => tid.encode(&mut buf)?,
+            _ => {}
+        };
+
+        Ok(buf)
     }
 
     pub fn check(frame: impl DataFrameLike) -> Result<()> {
@@ -254,13 +263,15 @@ impl FrameType {
         }
 
         let mut data = frame.data();
-        let code: u8 =
-            Decode::decode(&mut data).map_err(|e| anyhow!("failed to decode frame: {e}"))?;
+        let code: u8 = Decode::decode(&mut data).map_err(anyhow::Error::from_boxed)?;
 
         let error = match code {
             1 => Self::Abort(str::from_utf8(data)?.to_owned()),
             2 => Self::FinAck,
             3 => Self::AckError,
+            4 => {
+                Self::SignalReady(TransferID::decode(&mut data).map_err(anyhow::Error::from_boxed)?)
+            }
             _ => Self::Unknown(code),
         };
 
@@ -297,7 +308,7 @@ mod tests {
     #[test]
     fn error_frame_check() -> Result<()> {
         let err = FrameType::Unknown(42);
-        let err = FrameType::check(err.to_bytes()).err().unwrap();
+        let err = FrameType::check(err.to_bytes()?).err().unwrap();
         let err = err.downcast_ref::<FrameType>().unwrap();
         assert_eq!(err.code(), 42);
         Ok(())

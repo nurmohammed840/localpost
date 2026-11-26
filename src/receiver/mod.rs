@@ -5,7 +5,7 @@ pub use ack_bitset::AckBitSet;
 
 use crate::{
     file::{AsyncFileWriter, FileWriter},
-    protocol::{AckFrame, DataFrame, DataFrameLike, FrameType, FileInfo},
+    protocol::{AckFrame, DataFrame, DataFrameLike, FileInfo, FrameType},
     socket::AsyncDatagramSocket as DatagramSocket,
 };
 use anyhow::{Context, Result};
@@ -91,7 +91,7 @@ where
             },
         };
 
-        nio::spawn_local(async move { Self::send_fin_frame(socket, &frame.to_bytes()).await });
+        nio::spawn_local(async move { Self::send_fin_frame(socket, &frame.to_bytes()?).await });
 
         if result.is_ok() {
             self.writer.finish().await?;
