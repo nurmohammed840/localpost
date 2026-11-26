@@ -253,13 +253,13 @@ impl FrameType {
         Ok(buf)
     }
 
-    pub fn check(frame: impl DataFrameLike) -> Result<()> {
+    pub fn check(frame: impl DataFrameLike) -> Result<Option<TransferID>> {
         if frame.as_bytes().len() < 4 {
             bail!("small frame");
         }
 
         if frame.no() != u32::MAX {
-            return Ok(());
+            return Ok(None);
         }
 
         let mut data = frame.data();
@@ -270,7 +270,8 @@ impl FrameType {
             2 => Self::FinAck,
             3 => Self::AckError,
             4 => {
-                Self::SignalReady(TransferID::decode(&mut data).map_err(anyhow::Error::from_boxed)?)
+                let tid = TransferID::decode(&mut data).map_err(anyhow::Error::from_boxed)?;
+                return Ok(Some(tid));
             }
             _ => Self::Unknown(code),
         };

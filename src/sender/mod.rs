@@ -66,7 +66,9 @@ where
         }?;
 
         let frame = &self.recv_buf[..len];
-        FrameType::check(frame)?;
+        if FrameType::check(frame)?.is_some() {
+            return Ok(None); // Ignore TransferID Signal
+        }
         AckFrame::try_from(frame).map(Some)
     }
 
