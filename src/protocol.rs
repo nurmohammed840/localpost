@@ -153,7 +153,9 @@ impl DataFrame {
 
     pub fn try_from(buf: Box<[u8]>) -> Result<Self> {
         let frame = Self { buf };
-        FrameType::check(&frame)?;
+        if let Some(tid) = FrameType::check(&frame)? {
+            return Err(FrameType::SignalReady(tid).into());
+        }
         Ok(frame)
     }
 }
