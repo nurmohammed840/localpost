@@ -186,6 +186,31 @@ impl FileRequest {
         Ok(info)
     }
 
+    pub async fn notify_ready(
+        self,
+        receiver: Rc<UdpSocket>,
+        status: Arc<RecvStatus>,
+        tid: TransferID,
+    ) -> Result<()> {
+        match self.mode {
+            Mode::Server => self.stream.send_last_msg(tid).await,
+            Mode::Client => {
+                let signal_ready = FrameType::SignalReady(tid).to_bytes()?;
+
+                for _ in 0..10 {
+                    receiver.send(&signal_ready).await?;
+                    nio::sleep(Duration::from_millis(500)).await;
+
+                    if status.recv_count() > 0 {
+                        return Ok(());
+                    }
+                }
+
+                bail!("no response");
+            }
+        }
+    }
+
     pub async fn receive(
         self,
         file: impl Write + Seek + Send + 'static,
@@ -198,30 +223,8 @@ impl FileRequest {
         receiver.socket.connect(sender_socket_addr).await?;
         file_info.tid.udp_port = receiver.socket.local_addr()?.port();
 
-        let send_signal = {
-            let receiver = Rc::clone(&receiver);
-            let status = status.clone();
-
-            nio::spawn_local(async move {
-                match self.mode {
-                    Mode::Server => self.stream.send_last_msg(file_info.tid).await,
-                    Mode::Client => {
-                        let signal_ready = FrameType::SignalReady(file_info.tid).to_bytes()?;
-
-                        for _ in 0..10 {
-                            receiver.send(&signal_ready).await?;
-                            nio::sleep(Duration::from_millis(500)).await;
-
-                            if status.recv_count() > 0 {
-                                return Ok(());
-                            }
-                        }
-
-                        bail!("no response");
-                    }
-                }
-            })
-        };
+        let send_signal =
+            nio::spawn_local(self.notify_ready(receiver.clone(), status.clone(), file_info.tid));
 
         let writer = FileWriter::new(file, file_info.frame_size - 4);
         let receiver = FileReceiver::new(writer, receiver, &file_info);
