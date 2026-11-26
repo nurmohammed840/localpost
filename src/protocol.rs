@@ -237,7 +237,7 @@ impl FrameType {
 
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         let size = match self {
-            FrameType::Abort(msg) => msg.as_bytes().len(),
+            FrameType::Abort(msg) => msg.len(),
             _ => 0,
         };
 

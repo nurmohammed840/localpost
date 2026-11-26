@@ -4,13 +4,12 @@ pub mod mux;
 
 use crate::{
     file::{FileReader, FileWriter},
-    protocol::{FileInfo, SystemInfo, TransferID},
+    protocol::{FileInfo, FrameType, SystemInfo, TransferID},
     receiver::{FileReceiver, RecvStatus},
     sender::{FileSender, SendStatus},
     socket::{AsyncDatagramSocket, async_udp::UdpSocket},
 };
 use anyhow::{Result, bail};
-use lipi::{Decode, Encode};
 use nio::net::{TcpListener, TcpStream};
 use std::{
     cell::RefCell,
@@ -199,7 +198,8 @@ impl FileRequest {
         file_info.tid.udp_port = receiver.socket.local_addr()?.port();
 
         if self.mode == Mode::Client {
-            receiver.send(&file_info.tid.to_bytes()?).await?;
+            let signal_ready = FrameType::SignalReady(file_info.tid);
+            receiver.send(&signal_ready.to_bytes()?).await?;
         }
 
         let writer = FileWriter::new(file, file_info.frame_size - 4);
@@ -221,21 +221,25 @@ impl FileRequest {
 }
 
 async fn wait_for_signal(sender: &UdpSocket, random_id: u32) -> Result<()> {
-    let mut buf = vec![0; 16];
-    for _ in 0..7 {
-        let (len, addr) = sender.recv_from(&mut buf).await?;
+    let mut buf = vec![0; 32];
+    let (len, addr) = sender.recv_from(&mut buf).await?;
 
-        let is_tid_matched = TransferID::decode(&mut &buf[..len])
-            .ok()
-            .is_some_and(|tid| {
-                tid.udp_port == addr.port() && tid.id.is_some_and(|id| id == random_id)
-            });
+    let Some(tid) = FrameType::check(&buf[..len])? else {
+        bail!("received an invalid signal frame from {addr}");
+    };
 
-        if is_tid_matched {
-            sender.socket.connect(addr).await?;
-            return Ok(());
-        }
+    if tid.udp_port != addr.port() {
+        bail!(
+            "UDP port mismatch from {addr}: expected {}, got {}",
+            addr.port(),
+            tid.udp_port,
+        );
     }
 
-    bail!("Unable to connect")
+    if tid.id != Some(random_id) {
+        bail!("received unexpected transfer ID from {addr}",);
+    }
+
+    sender.socket.connect(addr).await?;
+    Ok(())
 }

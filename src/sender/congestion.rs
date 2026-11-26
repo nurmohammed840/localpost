@@ -77,7 +77,7 @@ impl FlowControl {
     }
 
     pub fn mark_as_complete(&mut self, ack: &AckFrame) -> Option<Instant> {
-        let mut filter = AckFilter::new(&ack);
+        let mut filter = AckFilter::new(ack);
 
         self.in_flight.retain(|p| filter.retain(p));
         self.queued_in_flight.retain(|p| filter.retain(p));
