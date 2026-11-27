@@ -18,7 +18,7 @@ abstract class ResConnection implements RustOpaqueInterface {
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResEndpoint>>
 abstract class ResEndpoint implements RustOpaqueInterface {
-  Stream<ResFile> acceptRequests();
+  Stream<ResFileRequest> acceptRequests();
 
   Future<void> disconnect();
 
@@ -46,8 +46,8 @@ abstract class ResEndpoint implements RustOpaqueInterface {
   });
 }
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>>
-abstract class ResFile implements RustOpaqueInterface {
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFileRequest>>
+abstract class ResFileRequest implements RustOpaqueInterface {
   Future<void> closeWithoutResponse();
 
   Future<FileInfo> fileInfo();

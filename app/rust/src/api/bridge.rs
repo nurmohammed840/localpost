@@ -160,7 +160,7 @@ impl ResEndpoint {
         block_on(async move || endpoint.send(reader, file_info, status).await)
     }
 
-    pub fn accept_requests(&self, sink: StreamSink<ResFile>) {
+    pub fn accept_requests(&self, sink: StreamSink<ResFileRequest>) {
         let endpoint = self.endpoint.clone();
 
         block_on(async move || {
@@ -183,11 +183,11 @@ impl ResEndpoint {
 }
 
 #[frb(opaque)]
-pub struct ResFile {
+pub struct ResFileRequest {
     req: Arc<Res<FileRequest>>,
 }
 
-impl ResFile {
+impl ResFileRequest {
     pub fn file_info(&self) -> Result<FileInfo> {
         let req = self.req.clone();
         block_on(async move || req.file_info().await)
@@ -305,7 +305,7 @@ impl From<Endpoint> for ResEndpoint {
     }
 }
 
-impl From<FileRequest> for ResFile {
+impl From<FileRequest> for ResFileRequest {
     fn from(req: FileRequest) -> Self {
         Self {
             req: Arc::new(Res::from(req)),

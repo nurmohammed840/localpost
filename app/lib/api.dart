@@ -75,7 +75,7 @@ class FileUpload(final FileInfo fileInfo) {
   // final status = CreateState<ResRecvStatus?>(null);
 }
 
-class FileDownload(final FileInfo fileInfo, final ResFile request) {
+class FileDownload(final FileInfo fileInfo, final ResFileRequest request) {
   final status = CreateState<ResRecvStatus?>(null);
 
   bool removeFromList() => downloads.update((list) => list.remove(this));

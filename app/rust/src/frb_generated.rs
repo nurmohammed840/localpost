@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1220564403;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1282895509;
 
 // Section: executor
 
@@ -89,57 +89,24 @@ fn wire__crate__api__bridge__ResEndpoint_accept_requests_impl(
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ResEndpoint_accept_requests",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResEndpoint>,
-            >>::sse_decode(&mut deserializer);
-            let api_sink =
-                <StreamSink<ResFile, flutter_rust_bridge::for_generated::SseCodec>>::sse_decode(
-                    &mut deserializer,
-                );
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = Ok::<_, ()>({
-                        crate::api::bridge::ResEndpoint::accept_requests(
-                            &*api_that_guard,
-                            api_sink,
-                        );
-                    })?;
-                    std::result::Result::Ok(output_ok)
-                })())
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "ResEndpoint_accept_requests", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResEndpoint>>>::sse_decode(&mut deserializer);
+let api_sink = <StreamSink<ResFileRequest,flutter_rust_bridge::for_generated::SseCodec>>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+                    transform_result_sse::<_, ()>((move ||  {
+                        let mut api_that_guard = None;
+let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_that, 0, false)]);
+        for i in decode_indices_ {
+            match i {
+                0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                _ => unreachable!(),
             }
-        },
-    )
+        }
+        let api_that_guard = api_that_guard.unwrap();
+ let output_ok = Ok::<_, ()>({ crate::api::bridge::ResEndpoint::accept_requests(&*api_that_guard, api_sink); })?;   std::result::Result::Ok(output_ok)
+                    })())
+                } })
 }
 fn wire__crate__api__bridge__ResEndpoint_disconnect_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
@@ -378,7 +345,7 @@ fn wire__crate__api__bridge__ResEndpoint_send_file_from_path_impl(
         },
     )
 }
-fn wire__crate__api__bridge__ResFile_close_without_response_impl(
+fn wire__crate__api__bridge__ResFileRequest_close_without_response_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -386,7 +353,7 @@ fn wire__crate__api__bridge__ResFile_close_without_response_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ResFile_close_without_response",
+            debug_name: "ResFileRequest_close_without_response",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -400,13 +367,13 @@ fn wire__crate__api__bridge__ResFile_close_without_response_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <ResFile>::sse_decode(&mut deserializer);
+            let api_that = <ResFileRequest>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok =
-                            crate::api::bridge::ResFile::close_without_response(api_that)?;
+                            crate::api::bridge::ResFileRequest::close_without_response(api_that)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -414,7 +381,7 @@ fn wire__crate__api__bridge__ResFile_close_without_response_impl(
         },
     )
 }
-fn wire__crate__api__bridge__ResFile_file_info_impl(
+fn wire__crate__api__bridge__ResFileRequest_file_info_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -422,7 +389,7 @@ fn wire__crate__api__bridge__ResFile_file_info_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ResFile_file_info",
+            debug_name: "ResFileRequest_file_info",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -437,7 +404,7 @@ fn wire__crate__api__bridge__ResFile_file_info_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>,
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFileRequest>,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
@@ -457,7 +424,8 @@ fn wire__crate__api__bridge__ResFile_file_info_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::bridge::ResFile::file_info(&*api_that_guard)?;
+                        let output_ok =
+                            crate::api::bridge::ResFileRequest::file_info(&*api_that_guard)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -465,7 +433,7 @@ fn wire__crate__api__bridge__ResFile_file_info_impl(
         },
     )
 }
-fn wire__crate__api__bridge__ResFile_receive_impl(
+fn wire__crate__api__bridge__ResFileRequest_receive_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -473,7 +441,7 @@ fn wire__crate__api__bridge__ResFile_receive_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ResFile_receive",
+            debug_name: "ResFileRequest_receive",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -487,7 +455,7 @@ fn wire__crate__api__bridge__ResFile_receive_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <ResFile>::sse_decode(&mut deserializer);
+            let api_that = <ResFileRequest>::sse_decode(&mut deserializer);
             let api_path = <String>::sse_decode(&mut deserializer);
             let api_status = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResRecvStatus>,
@@ -512,7 +480,7 @@ fn wire__crate__api__bridge__ResFile_receive_impl(
                             }
                         }
                         let api_status_guard = api_status_guard.unwrap();
-                        let output_ok = crate::api::bridge::ResFile::receive(
+                        let output_ok = crate::api::bridge::ResFileRequest::receive(
                             api_that,
                             api_path,
                             &*api_status_guard,
@@ -857,7 +825,7 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResEndpoint>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>
+    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFileRequest>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResRecvStatus>
@@ -899,11 +867,11 @@ impl SseDecode for ResEndpoint {
     }
 }
 
-impl SseDecode for ResFile {
+impl SseDecode for ResFileRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>,
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFileRequest>,
         >>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
     }
@@ -959,7 +927,9 @@ impl SseDecode
     }
 }
 
-impl SseDecode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>> {
+impl SseDecode
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFileRequest>>
+{
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <usize>::sse_decode(deserializer);
@@ -995,7 +965,7 @@ impl SseDecode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpa
     }
 }
 
-impl SseDecode for StreamSink<ResFile, flutter_rust_bridge::for_generated::SseCodec> {
+impl SseDecode for StreamSink<ResFileRequest, flutter_rust_bridge::for_generated::SseCodec> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <String>::sse_decode(deserializer);
@@ -1273,14 +1243,21 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        7 => wire__crate__api__bridge__ResFile_close_without_response_impl(
+        7 => wire__crate__api__bridge__ResFileRequest_close_without_response_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        8 => wire__crate__api__bridge__ResFile_file_info_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__bridge__ResFile_receive_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__bridge__ResFileRequest_file_info_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        9 => {
+            wire__crate__api__bridge__ResFileRequest_receive_impl(port, ptr, rust_vec_len, data_len)
+        }
         14 => wire__crate__api__bridge__Server_bind_impl(port, ptr, rust_vec_len, data_len),
         15 => wire__crate__api__bridge__Server_run_impl(port, ptr, rust_vec_len, data_len),
         16 => wire__crate__api__bridge__init_app_impl(port, ptr, rust_vec_len, data_len),
@@ -1346,16 +1323,16 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<ResEndpoint>> for ResEndpoint 
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<ResFile> {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<ResFileRequest> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
             .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<ResFile> {}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<ResFileRequest> {}
 
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<ResFile>> for ResFile {
-    fn into_into_dart(self) -> FrbWrapper<ResFile> {
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<ResFileRequest>> for ResFileRequest {
+    fn into_into_dart(self) -> FrbWrapper<ResFileRequest> {
         self.into()
     }
 }
@@ -1497,10 +1474,10 @@ impl SseEncode for ResEndpoint {
     }
 }
 
-impl SseEncode for ResFile {
+impl SseEncode for ResFileRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
+        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFileRequest>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
     }
 }
 
@@ -1547,7 +1524,9 @@ impl SseEncode
     }
 }
 
-impl SseEncode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>> {
+impl SseEncode
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFileRequest>>
+{
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         let (ptr, size) = self.sse_encode_raw();
@@ -1587,7 +1566,7 @@ impl SseEncode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpa
     }
 }
 
-impl SseEncode for StreamSink<ResFile, flutter_rust_bridge::for_generated::SseCodec> {
+impl SseEncode for StreamSink<ResFileRequest, flutter_rust_bridge::for_generated::SseCodec> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         unimplemented!("")
@@ -1845,17 +1824,17 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_localpost_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResFile(
+    pub extern "C" fn frbgen_localpost_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResFileRequest(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>>::increment_strong_count(ptr as _);
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFileRequest>>::increment_strong_count(ptr as _);
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_localpost_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResFile(
+    pub extern "C" fn frbgen_localpost_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResFileRequest(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>>::decrement_strong_count(ptr as _);
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFileRequest>>::decrement_strong_count(ptr as _);
     }
 
     #[unsafe(no_mangle)]
