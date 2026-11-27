@@ -64,15 +64,19 @@ class MainPage extends StatelessWidget {
 class TransferNavigationIcon extends StatelessWidget {
   const new({super.key});
 
-  static Widget badge(IconData icon) => downloads.watch(
-    (_) => Badge(
+  static Listenable signal = .merge([uploads, downloads]);
+
+  static Widget badge(IconData icon) => signal.watch((_) {
+    final count = uploads.value.length + downloads.value.length;
+
+    return Badge(
       alignment: .topRight,
       offset: const Offset(8, -8),
-      isLabelVisible: downloads.value.isNotEmpty,
-      label: Text(downloads.value.length.toString()),
+      isLabelVisible: count > 0,
+      label: Text('$count'),
       child: Icon(icon),
-    ),
-  );
+    );
+  });
 
   @override
   Widget build(_) => NavigationDestination(

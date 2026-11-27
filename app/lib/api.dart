@@ -51,10 +51,11 @@ class const Connection(
       if (file == null) return;
 
       final info = file.fileInfo();
-      await endpoint.sendFile(file: file, status: status);
       uploads.update(
         (list) => list.add(FileUpload(FormattedFileInfo(info), status)),
       );
+
+      await endpoint.sendFile(file: file, status: status);
     } catch (error) {
       showErrorSnackBar(error);
     }
@@ -82,7 +83,9 @@ class FileDownload(
 
   Future reject() async {
     try {
+      print(downloads.value.length);
       removeFromList();
+      print(downloads.value.length);
       await request.closeWithoutResponse();
     } catch (error) {
       showErrorSnackBar(error);

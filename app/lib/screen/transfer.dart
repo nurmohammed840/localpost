@@ -16,7 +16,47 @@ class TransferScreen extends StatelessWidget {
       if (uploads.value.isEmpty && downloads.value.isEmpty) {
         return const Center(child: EmptyHistory());
       }
-      return const TransferList();
+
+      return CustomScrollView(
+        slivers: [
+          if (uploads.value.isNotEmpty) ...[
+            const GroupHeader(title: 'Upload'),
+            SliverList.builder(
+              itemCount: uploads.value.length,
+              itemBuilder: (ctx, index) {
+                final item = uploads.value[index];
+                return FileCard(info: item.fileInfo);
+                // ...
+              },
+            ),
+          ],
+
+          if (downloads.value.isNotEmpty) ...[
+            const GroupHeader(title: 'Download'),
+            SliverList.builder(
+              itemCount: downloads.value.length,
+              itemBuilder: (ctx, index) {
+                final item = downloads.value[index];
+                final status = item.status;
+
+                return status.watch(
+                  (_) => FileCard(
+                    info: item.fileInfo,
+
+                    trailing: item.status.value == null
+                        ? AcceptRejectButtons(req: item)
+                        : null,
+
+                    onTap: status.value == null ? null : () {},
+                  ),
+                );
+              },
+            ),
+          ],
+
+          // ...
+        ],
+      );
     }),
   );
 }
@@ -34,50 +74,6 @@ class EmptyHistory extends StatelessWidget {
         'The history is empty',
         style: TextStyle(fontSize: 16, color: Colors.grey),
       ),
-    ],
-  );
-}
-
-class TransferList extends StatelessWidget {
-  const new({super.key});
-
-  @override
-  Widget build(BuildContext context) => CustomScrollView(
-    slivers: [
-      if (uploads.value.isNotEmpty) ...[
-        const GroupHeader(title: 'Upload'),
-        SliverList.builder(
-          itemCount: uploads.value.length,
-          itemBuilder: (ctx, index) {
-            final item = uploads.value[index];
-            return FileCard(info: item.fileInfo);
-            // ...
-          },
-        ),
-      ],
-
-      if (downloads.value.isNotEmpty) ...[
-        const GroupHeader(title: 'Download'),
-        SliverList.builder(
-          itemCount: downloads.value.length,
-          itemBuilder: (ctx, index) {
-            final item = downloads.value[index];
-            final status = item.status;
-
-            return status.watch(
-              (_) => FileCard(
-                info: item.fileInfo,
-
-                trailing: item.status.value == null
-                    ? AcceptRejectButtons(req: item)
-                    : null,
-
-                onTap: status.value == null ? null : () {},
-              ),
-            );
-          },
-        ),
-      ],
     ],
   );
 }
