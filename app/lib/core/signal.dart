@@ -18,9 +18,10 @@ class CreateState<T> extends ChangeNotifier implements ValueListenable<T> {
     _value = newValue;
   }
 
-  void update(void Function(T) cb) {
-    cb(_value);
+  R update<R>(R Function(T) cb) {
+    final output = cb(_value);
     notifyListeners();
+    return output;
   }
 
   void set(T value) {

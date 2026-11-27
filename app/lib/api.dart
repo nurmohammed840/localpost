@@ -66,9 +66,7 @@ class const Connection(
 class FileRequest(final FileInfo fileInfo, final ResFile request) {
   final status = CreateState<ResRecvStatus?>(null);
 
-  void removeFromList() {
-    fileRequests.update((list) => list.remove(this));
-  }
+  bool removeFromList() => fileRequests.update((list) => list.remove(this));
 
   Future reject() async {
     try {
