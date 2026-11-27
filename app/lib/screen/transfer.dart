@@ -31,32 +31,69 @@ class TransferScreen extends StatelessWidget {
 
       return ListView.builder(
         itemCount: fileRequests.value.length,
-        itemBuilder: (_, index) {
-          final r = fileRequests.value[index];
-          final fileName = utf8.decode(r.fileInfo.name, allowMalformed: true);
-
-          return Card(
-            elevation: 0,
-            clipBehavior: .antiAlias,
-            margin: const .symmetric(horizontal: 12, vertical: 6),
-            shape: RoundedRectangleBorder(borderRadius: .circular(8)),
-            child: ListTile(
-              onTap: () {},
-              leading: Icon(fileIcon(fileName), size: 32),
-              title: Text(fileName, maxLines: 1, overflow: .ellipsis),
-              subtitle: Column(
-                crossAxisAlignment: .start,
-                children: [
-                  Text(formatDate(r.fileInfo.lastModified)),
-                  Text(formatBytes(r.fileInfo.size)),
-                ],
-              ),
-            ),
-          );
+        itemBuilder: (ctx, index) {
+          final req = fileRequests.value[index];
+          final fileName = utf8.decode(req.fileInfo.name, allowMalformed: true);
+          return FileCard(fileName: fileName, req: req);
         },
       );
     }),
   );
+}
+
+class FileCard extends StatelessWidget {
+  const new({super.key, required this.fileName, required this.req});
+
+  final String fileName;
+  final FileRequest req;
+
+  @override
+  Widget build(_) => Card(
+    elevation: 0,
+    clipBehavior: .antiAlias,
+    margin: const .symmetric(horizontal: 12, vertical: 6),
+    shape: RoundedRectangleBorder(borderRadius: .circular(8)),
+    child: ListTile(
+      onTap: () {},
+      leading: Icon(fileIcon(fileName), size: 32),
+      title: Text(fileName, maxLines: 1, overflow: .ellipsis),
+      subtitle: Column(
+        crossAxisAlignment: .start,
+        children: [
+          Text(formatDate(req.fileInfo.lastModified)),
+          Text(formatBytes(req.fileInfo.size)),
+        ],
+      ),
+      trailing: const AcceptRejectButtons(),
+    ),
+  );
+}
+
+class AcceptRejectButtons extends StatelessWidget {
+  const new({super.key});
+
+  @override
+  Widget build(ctx) {
+    final scheme = Theme.of(ctx).colorScheme;
+
+    return Row(
+      mainAxisSize: .min,
+      children: [
+        IconButton(
+          tooltip: 'Reject',
+          color: scheme.error,
+          icon: const Icon(Icons.close),
+          onPressed: () {},
+        ),
+        IconButton(
+          tooltip: 'Accept',
+          color: scheme.primary,
+          icon: const Icon(Icons.check),
+          onPressed: () {},
+        ),
+      ],
+    );
+  }
 }
 
 String formatBytes(BigInt bytes) {

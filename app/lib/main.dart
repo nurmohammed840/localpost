@@ -75,7 +75,7 @@ class TransferNavigationIcon extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) => NavigationDestination(
+  Widget build(_) => NavigationDestination(
     icon: badge(Icons.swap_vert_outlined),
     selectedIcon: badge(Icons.swap_vert),
     label: 'Transfer',
