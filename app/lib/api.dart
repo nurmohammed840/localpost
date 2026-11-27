@@ -1,3 +1,4 @@
+import 'dart:convert' show utf8;
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -8,7 +9,7 @@ import 'package:localpost/src/rust/api/bridge.dart';
 
 CreateState<ServerState> serverState = CreateState(ServerLoading());
 CreateState<List<Connection>> connections = CreateState([]);
-CreateState<List<FileDownload>> uploads = CreateState([]);
+CreateState<List<FileUpload>> uploads = CreateState([]);
 CreateState<List<FileDownload>> downloads = CreateState([]);
 
 sealed class ServerState {}
@@ -48,19 +49,23 @@ class const Connection(
       final file = await _pickResFile();
       if (file == null) return;
 
+      final info = file.fileInfo();
       await endpoint.sendFile(file: file, status: status);
+      uploads.update((list) => list.add(FileUpload(info, status)));
     } catch (error) {
       showErrorSnackBar(error);
     }
   }
 }
 
-class FileUpload(final FileInfo fileInfo) {
-  // final status = CreateState<ResRecvStatus?>(null);
+class FileUpload(final FileInfo fileInfo, final ResSendStatus status) {
+  String fileName() => utf8.decode(fileInfo.name, allowMalformed: true);
 }
 
 class FileDownload(final FileInfo fileInfo, final ResFileRequest request) {
   final status = CreateState<ResRecvStatus?>(null);
+
+  String fileName() => utf8.decode(fileInfo.name, allowMalformed: true);
 
   bool removeFromList() => downloads.update((list) => list.remove(this));
 
