@@ -12,16 +12,12 @@ class TransferScreen extends StatelessWidget {
   @override
   Widget build(_) => Scaffold(
     appBar: appBar(title: const Text('Transfer')),
-    body: Watch(
-      signal: signal,
-      builder: (_) {
-        if (uploads.value.isEmpty && downloads.value.isEmpty) {
-          return const Center(child: EmptyHistory());
-        }
-
-        return const TransferList();
-      },
-    ),
+    body: signal.watch((_) {
+      if (uploads.value.isEmpty && downloads.value.isEmpty) {
+        return const Center(child: EmptyHistory());
+      }
+      return const TransferList();
+    }),
   );
 }
 
@@ -106,9 +102,7 @@ class FileCard extends StatelessWidget {
       onTap: onTap,
       subtitle: Column(
         crossAxisAlignment: .start,
-        children: [
-          Text(info.lastModified), Text(info.size),
-        ],
+        children: [Text(info.lastModified), Text(info.size)],
       ),
     ),
   );

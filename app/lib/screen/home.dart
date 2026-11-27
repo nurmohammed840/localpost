@@ -8,14 +8,13 @@ import 'package:localpost/widget/qrcode.dart';
 class HomeScreen extends StatelessWidget {
   const new({super.key});
 
-  static Listenable signal = Listenable.merge([serverState, connections]);
+  static Listenable signal = .merge([serverState, connections]);
 
   @override
   Widget build(_) => Scaffold(
     appBar: appBar(title: const Text('Local Post')),
-    body: Watch(
-      signal: signal,
-      builder: (_) => switch (serverState.value) {
+    body: signal.watch(
+      (_) => switch (serverState.value) {
         ServerLoading() => const Center(child: CircularProgressIndicator()),
         ServerClosed(:final message) => Padding(
           padding: const .all(24.0),

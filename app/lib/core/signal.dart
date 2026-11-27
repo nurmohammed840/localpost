@@ -1,9 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+extension WatchListenable on Listenable {
+  Watch watch(WatchableWidgetBuilder builder) => Watch(this, builder);
+}
+
 class CreateState<T> extends ChangeNotifier implements ValueListenable<T> {
   /// Creates a [ChangeNotifier] that wraps this value.
-  CreateState(this._value);
+  new(this._value);
 
   /// The current value stored in this notifier.
   ///
@@ -37,9 +41,7 @@ class CreateState<T> extends ChangeNotifier implements ValueListenable<T> {
     notifyListeners();
   }
 
-  Watch watch(WatchableWidgetBuilder builder) {
-    return Watch(signal: this, builder: builder);
-  }
+  Watch watch(WatchableWidgetBuilder builder) => Watch(this, builder);
 
   @override
   String toString() => '${describeIdentity(this)}($value)';
@@ -48,7 +50,7 @@ class CreateState<T> extends ChangeNotifier implements ValueListenable<T> {
 typedef WatchableWidgetBuilder = Widget Function(BuildContext ctx);
 
 class Watch extends StatefulWidget {
-  const Watch({super.key, required this.signal, required this.builder});
+  const new(this.signal, this.builder, {super.key});
 
   final Listenable signal;
   final WatchableWidgetBuilder builder;

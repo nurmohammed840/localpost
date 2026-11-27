@@ -45,7 +45,7 @@ Future<String?> promptIPAddr(
         ),
         actions: [
           ListenableBuilder(
-            listenable: Listenable.merge([ipController, portController]),
+            listenable: .merge([ipController, portController]),
             builder: (ctx, _) {
               final addr = tryParseLocalAddr(
                 ipController.text,

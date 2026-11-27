@@ -17,46 +17,40 @@ AppBar appBar({Widget? title}) => AppBar(
 class ActionBtn extends StatelessWidget {
   const new({super.key});
 
-  static Listenable signal = Listenable.merge([
-    MainPage.screenIdx,
-    connections,
-  ]);
+  static Listenable signal = .merge([MainPage.screenIdx, connections]);
 
   @override
-  Widget build(ctx) => Watch(
-    signal: signal,
-    builder: (ctx) {
-      if (MainPage.screenIdx.value == 0 && connections.value.isEmpty) {
-        return IconButton(
-          tooltip: 'Settings',
+  Widget build(ctx) => signal.watch((ctx) {
+    if (MainPage.screenIdx.value == 0 && connections.value.isEmpty) {
+      return IconButton(
+        tooltip: 'Settings',
+        icon: const Icon(Icons.settings),
+        onPressed: () {
+          Navigator.push(
+            ctx,
+            MaterialPageRoute(builder: (_) => const Settings()),
+          );
+        },
+      );
+    }
+
+    return PopupMenuButton(
+      position: .under,
+      itemBuilder: (ctx) => [
+        ...menuList(ctx),
+        popupMenuItem(
           icon: const Icon(Icons.settings),
-          onPressed: () {
+          child: const Text('Settings'),
+          onTap: () {
             Navigator.push(
               ctx,
               MaterialPageRoute(builder: (_) => const Settings()),
             );
           },
-        );
-      }
-
-      return PopupMenuButton(
-        position: .under,
-        itemBuilder: (ctx) => [
-          ...menuList(ctx),
-          popupMenuItem(
-            icon: const Icon(Icons.settings),
-            child: const Text('Settings'),
-            onTap: () {
-              Navigator.push(
-                ctx,
-                MaterialPageRoute(builder: (_) => const Settings()),
-              );
-            },
-          ),
-        ],
-      );
-    },
-  );
+        ),
+      ],
+    );
+  });
 }
 
 List<PopupMenuItem<dynamic>> menuList(BuildContext ctx) {
