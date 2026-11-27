@@ -11,10 +11,14 @@ class Settings extends StatelessWidget {
   static final store = SharedPreferencesAsync();
 
   static final theme = CreateState(ThemeMode.dark);
+  static final quickReceive = CreateState(true);
 
   static Future load() async {
     final isDark = await store.getBool("Settings.isDark") ?? true;
+    final isQuickReceive = await store.getBool("Settings.quickReceive") ?? true;
+
     theme.set(isDark == true ? .dark : .light);
+    quickReceive.set(isQuickReceive);
   }
 
   @override
@@ -24,13 +28,28 @@ class Settings extends StatelessWidget {
       children: [
         theme.watch(
           (_) => SwitchListTile(
+            secondary: const Icon(Icons.dark_mode),
             title: const Text("Dark Mode"),
             subtitle: const Text("Use dark theme"),
-            secondary: const Icon(Icons.dark_mode),
             value: theme.value == .dark,
             onChanged: (value) async {
               theme.set(value ? .dark : .light);
               return store.setBool("Settings.isDark", value);
+            },
+          ),
+        ),
+
+        quickReceive.watch(
+          (_) => SwitchListTile(
+            secondary: const Icon(Icons.file_download_outlined),
+            title: const Text('Quick Receive'),
+            subtitle: const Text(
+              'Automatically start downloading received files',
+            ),
+            value: quickReceive.value,
+            onChanged: (value) async {
+              quickReceive.set(value);
+              return store.setBool("Settings.quickReceive", value);
             },
           ),
         ),
