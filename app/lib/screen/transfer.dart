@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:localpost/api.dart';
 import 'package:localpost/core/signal.dart';
-import 'package:localpost/src/rust/api/bridge.dart';
 import 'package:localpost/utils/file_icon.dart';
 import 'package:localpost/widget/appbar.dart';
 
@@ -56,7 +54,7 @@ class TransferList extends StatelessWidget {
           itemCount: uploads.value.length,
           itemBuilder: (ctx, index) {
             final item = uploads.value[index];
-            return FileCard(fileInfo: item.fileInfo, fileName: item.fileName());
+            return FileCard(info: item.fileInfo);
             // ...
           },
         ),
@@ -72,8 +70,7 @@ class TransferList extends StatelessWidget {
 
             return status.watch(
               (_) => FileCard(
-                fileInfo: item.fileInfo,
-                fileName: item.fileName(),
+                info: item.fileInfo,
 
                 trailing: item.status.value == null
                     ? AcceptRejectButtons(req: item)
@@ -90,16 +87,9 @@ class TransferList extends StatelessWidget {
 }
 
 class FileCard extends StatelessWidget {
-  const new({
-    super.key,
-    required this.fileName,
-    required this.fileInfo,
-    this.trailing,
-    this.onTap,
-  });
+  const new({super.key, required this.info, this.trailing, this.onTap});
 
-  final String fileName;
-  final FileInfo fileInfo;
+  final FormattedFileInfo info;
   final Widget? trailing;
   final VoidCallback? onTap;
 
@@ -110,17 +100,16 @@ class FileCard extends StatelessWidget {
     margin: const .symmetric(horizontal: 12, vertical: 6),
     shape: RoundedRectangleBorder(borderRadius: .circular(8)),
     child: ListTile(
-      leading: Icon(fileIcon(fileName), size: 32),
-      title: Text(fileName, maxLines: 1, overflow: .ellipsis),
+      leading: Icon(fileIcon(info.fileName), size: 32),
+      title: Text(info.fileName, maxLines: 1, overflow: .ellipsis),
+      trailing: trailing,
+      onTap: onTap,
       subtitle: Column(
         crossAxisAlignment: .start,
         children: [
-          Text(formatDate(fileInfo.lastModified)),
-          Text(formatBytes(fileInfo.size)),
+          Text(info.lastModified), Text(info.size),
         ],
       ),
-      trailing: trailing,
-      onTap: onTap,
     ),
   );
 }
@@ -173,18 +162,3 @@ class GroupHeader extends StatelessWidget {
     ),
   );
 }
-
-String formatBytes(BigInt bytes) {
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  double size = bytes.toDouble();
-  int unit = 0;
-  while (size >= 1024 && unit < units.length - 1) {
-    size /= 1024;
-    unit++;
-  }
-  return '${size.toStringAsFixed(unit == 0 ? 0 : 1)} ${units[unit]}';
-}
-
-String formatDate(BigInt secs) =>
-    DateFormat('d MMM yyyy • h:mm a')
-        .format(DateTime.fromMillisecondsSinceEpoch(secs.toInt() * 1000));

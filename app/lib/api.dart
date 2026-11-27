@@ -6,6 +6,7 @@ import 'package:localpost/core/signal.dart';
 import 'package:localpost/dialog/error_snackbar.dart';
 import 'package:localpost/os/android_file_picker.dart';
 import 'package:localpost/src/rust/api/bridge.dart';
+import 'package:localpost/utils/format.dart';
 
 CreateState<ServerState> serverState = CreateState(ServerLoading());
 CreateState<List<Connection>> connections = CreateState([]);
@@ -51,21 +52,31 @@ class const Connection(
 
       final info = file.fileInfo();
       await endpoint.sendFile(file: file, status: status);
-      uploads.update((list) => list.add(FileUpload(info, status)));
+      uploads.update(
+        (list) => list.add(FileUpload(FormattedFileInfo(info), status)),
+      );
     } catch (error) {
       showErrorSnackBar(error);
     }
   }
 }
 
-class FileUpload(final FileInfo fileInfo, final ResSendStatus status) {
-  String fileName() => utf8.decode(fileInfo.name, allowMalformed: true);
+class FormattedFileInfo(final FileInfo fileInfo) {
+  final fileName = utf8.decode(fileInfo.name, allowMalformed: true);
+  final lastModified = formatDate(fileInfo.lastModified);
+  final size = formatBytes(fileInfo.size);
 }
 
-class FileDownload(final FileInfo fileInfo, final ResFileRequest request) {
-  final status = CreateState<ResRecvStatus?>(null);
+class FileUpload(
+  final FormattedFileInfo fileInfo,
+  final ResSendStatus status,
+) {}
 
-  String fileName() => utf8.decode(fileInfo.name, allowMalformed: true);
+class FileDownload(
+  final FormattedFileInfo fileInfo,
+  final ResFileRequest request,
+) {
+  final status = CreateState<ResRecvStatus?>(null);
 
   bool removeFromList() => downloads.update((list) => list.remove(this));
 
@@ -175,9 +186,9 @@ void acceptRequests(Connection endpoint) {
     },
     (request) async {
       try {
-        final fileInfo = await request.fileInfo();
+        final info = await request.fileInfo();
         downloads.update((list) {
-          list.add(FileDownload(fileInfo, request));
+          list.add(FileDownload(FormattedFileInfo(info), request));
         });
       } catch (error) {
         showErrorSnackBar(error);
