@@ -13,30 +13,33 @@ class TransferScreen extends StatelessWidget {
   Widget build(_) => Scaffold(
     appBar: appBar(title: const Text('Transfer')),
     body: signal.watch((_) {
-      if (uploads.value.isEmpty && downloads.value.isEmpty) {
+      final upload = uploads.value;
+      final download = downloads.value;
+
+      if (upload.isEmpty && download.isEmpty) {
         return const Center(child: EmptyHistory());
       }
 
       return CustomScrollView(
         slivers: [
-          if (uploads.value.isNotEmpty) ...[
+          if (upload.isNotEmpty) ...[
             const GroupHeader(title: 'Upload'),
             SliverList.builder(
-              itemCount: uploads.value.length,
+              itemCount: upload.length,
               itemBuilder: (ctx, index) {
-                final item = uploads.value[index];
+                final item = upload[index];
                 return FileCard(info: item.fileInfo);
                 // ...
               },
             ),
           ],
 
-          if (downloads.value.isNotEmpty) ...[
+          if (download.isNotEmpty) ...[
             const GroupHeader(title: 'Download'),
             SliverList.builder(
-              itemCount: downloads.value.length,
+              itemCount: download.length,
               itemBuilder: (ctx, index) {
-                final item = downloads.value[index];
+                final item = download[index];
                 final status = item.status;
 
                 return status.watch(

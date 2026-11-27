@@ -83,9 +83,7 @@ class FileDownload(
 
   Future reject() async {
     try {
-      print(downloads.value.length);
       removeFromList();
-      print(downloads.value.length);
       await request.closeWithoutResponse();
     } catch (error) {
       showErrorSnackBar(error);
