@@ -43,6 +43,8 @@ class const Connection(
 
   Future sendFile() async {
     const frameSize = 1500 - (20 + 8);
+    final status = ResSendStatus();
+
     try {
       if (Platform.isAndroid) {
         final picked = await AndroidFilePicker.pickFile();
@@ -52,11 +54,16 @@ class const Connection(
           fd: picked.fd,
           name: picked.name,
           frameSize: frameSize,
+          status: status,
         );
       } else {
         final path = await pickFile();
         if (path == null) return;
-        await endpoint.sendFileFromPath(path: path, frameSize: frameSize);
+        await endpoint.sendFileFromPath(
+          path: path,
+          frameSize: frameSize,
+          status: status,
+        );
       }
     } catch (error) {
       showErrorSnackBar(error);

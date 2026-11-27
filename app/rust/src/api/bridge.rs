@@ -123,14 +123,26 @@ impl ResEndpoint {
         })
     }
 
-    pub fn send_file_from_path(&self, path: String, frame_size: u16) -> Result<()> {
+    pub fn send_file_from_path(
+        &self,
+        path: String,
+        frame_size: u16,
+        status: &ResSendStatus,
+    ) -> Result<()> {
         let endpoint = self.endpoint.clone();
+        let status = status.inner.clone();
         let (reader, file_info) = FileReader::open(path, frame_size)?;
 
-        block_on(async move || endpoint.send(reader, file_info, SendStatus::new()).await)
+        block_on(async move || endpoint.send(reader, file_info, status).await)
     }
 
-    pub fn send_file_from_fd(&self, fd: i32, name: String, frame_size: u16) -> Result<()> {
+    pub fn send_file_from_fd(
+        &self,
+        fd: i32,
+        name: String,
+        frame_size: u16,
+        status: &ResSendStatus,
+    ) -> Result<()> {
         use std::io::{Seek, SeekFrom};
         use std::os::fd::FromRawFd;
 
@@ -142,8 +154,10 @@ impl ResEndpoint {
         let (reader, file_info) =
             FileReader::from(file, name.into(), frame_size, FileReader::BUFFER_SIZE)?;
 
+        let status = status.inner.clone();
         let endpoint = self.endpoint.clone();
-        block_on(async move || endpoint.send(reader, file_info, SendStatus::new()).await)
+
+        block_on(async move || endpoint.send(reader, file_info, status).await)
     }
 
     pub fn accept_requests(&self, sink: StreamSink<ResFile>) {
@@ -196,6 +210,28 @@ impl ResFile {
     }
 }
 
+pub struct ResSendStatus {
+    inner: Arc<SendStatus>,
+}
+
+impl ResSendStatus {
+    #[frb(sync)]
+    pub fn new() -> Self {
+        Self {
+            inner: SendStatus::new(),
+        }
+    }
+
+    #[frb(sync)]
+    pub fn send_lost_ack_count(&self) -> (u64, u32, (u32, u32)) {
+        (
+            self.inner.sent(),
+            self.inner.lost(),
+            self.inner.ack_counter.count(),
+        )
+    }
+}
+
 #[frb(opaque)]
 pub struct ResRecvStatus {
     inner: Arc<RecvStatus>,
@@ -210,8 +246,11 @@ impl ResRecvStatus {
     }
 
     #[frb(sync)]
-    pub fn total_and_recv_count(&self) -> (u64, u32) {
-        self.inner.total_and_duplicate_count()
+    pub fn total_recv_ack_count(&self) -> ((u64, u32), (u32, u32)) {
+        (
+            self.inner.total_and_duplicate_count(),
+            self.inner.ack_counter.count(),
+        )
     }
 }
 

@@ -66,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1948204051;
+  int get rustContentHash => 1220564403;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -98,12 +98,14 @@ abstract class RustLibApi extends BaseApi {
     required int fd,
     required String name,
     required int frameSize,
+    required ResSendStatus status,
   });
 
   Future<void> crateApiBridgeResEndpointSendFileFromPath({
     required ResEndpoint that,
     required String path,
     required int frameSize,
+    required ResSendStatus status,
   });
 
   Future<void> crateApiBridgeResFileCloseWithoutResponse({
@@ -120,8 +122,14 @@ abstract class RustLibApi extends BaseApi {
 
   ResRecvStatus crateApiBridgeResRecvStatusNew();
 
-  (BigInt, int) crateApiBridgeResRecvStatusTotalAndRecvCount({
+  ((BigInt, int), (int, int)) crateApiBridgeResRecvStatusTotalRecvAckCount({
     required ResRecvStatus that,
+  });
+
+  ResSendStatus crateApiBridgeResSendStatusNew();
+
+  (BigInt, int, (int, int)) crateApiBridgeResSendStatusSendLostAckCount({
+    required ResSendStatus that,
   });
 
   Future<(Server, String, String)> crateApiBridgeServerBind({
@@ -167,6 +175,15 @@ abstract class RustLibApi extends BaseApi {
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_ResRecvStatusPtr;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_ResSendStatus;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_ResSendStatus;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_ResSendStatusPtr;
 
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Server;
 
@@ -344,6 +361,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required int fd,
     required String name,
     required int frameSize,
+    required ResSendStatus status,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -356,6 +374,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_i_32(fd, serializer);
           sse_encode_String(name, serializer);
           sse_encode_u_16(frameSize, serializer);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+            status,
+            serializer,
+          );
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -368,7 +390,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiBridgeResEndpointSendFileFromFdConstMeta,
-        argValues: [that, fd, name, frameSize],
+        argValues: [that, fd, name, frameSize, status],
         apiImpl: this,
       ),
     );
@@ -377,7 +399,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiBridgeResEndpointSendFileFromFdConstMeta =>
       const TaskConstMeta(
         debugName: "ResEndpoint_send_file_from_fd",
-        argNames: ["that", "fd", "name", "frameSize"],
+        argNames: ["that", "fd", "name", "frameSize", "status"],
       );
 
   @override
@@ -385,6 +407,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required ResEndpoint that,
     required String path,
     required int frameSize,
+    required ResSendStatus status,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -396,6 +419,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_String(path, serializer);
           sse_encode_u_16(frameSize, serializer);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+            status,
+            serializer,
+          );
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -408,7 +435,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiBridgeResEndpointSendFileFromPathConstMeta,
-        argValues: [that, path, frameSize],
+        argValues: [that, path, frameSize, status],
         apiImpl: this,
       ),
     );
@@ -417,7 +444,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiBridgeResEndpointSendFileFromPathConstMeta =>
       const TaskConstMeta(
         debugName: "ResEndpoint_send_file_from_path",
-        argNames: ["that", "path", "frameSize"],
+        argNames: ["that", "path", "frameSize", "status"],
       );
 
   @override
@@ -554,7 +581,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "ResRecvStatus_new", argNames: []);
 
   @override
-  (BigInt, int) crateApiBridgeResRecvStatusTotalAndRecvCount({
+  ((BigInt, int), (int, int)) crateApiBridgeResRecvStatusTotalRecvAckCount({
     required ResRecvStatus that,
   }) {
     return handler.executeSync(
@@ -568,19 +595,74 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_record_u_64_u_32,
+          decodeSuccessData:
+              sse_decode_record_record_u_64_u_32_record_u_32_u_32,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiBridgeResRecvStatusTotalAndRecvCountConstMeta,
+        constMeta: kCrateApiBridgeResRecvStatusTotalRecvAckCountConstMeta,
         argValues: [that],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiBridgeResRecvStatusTotalAndRecvCountConstMeta =>
+  TaskConstMeta get kCrateApiBridgeResRecvStatusTotalRecvAckCountConstMeta =>
       const TaskConstMeta(
-        debugName: "ResRecvStatus_total_and_recv_count",
+        debugName: "ResRecvStatus_total_recv_ack_count",
+        argNames: ["that"],
+      );
+
+  @override
+  ResSendStatus crateApiBridgeResSendStatusNew() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiBridgeResSendStatusNewConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBridgeResSendStatusNewConstMeta =>
+      const TaskConstMeta(debugName: "ResSendStatus_new", argNames: []);
+
+  @override
+  (BigInt, int, (int, int)) crateApiBridgeResSendStatusSendLostAckCount({
+    required ResSendStatus that,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_record_u_64_u_32_record_u_32_u_32,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiBridgeResSendStatusSendLostAckCountConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBridgeResSendStatusSendLostAckCountConstMeta =>
+      const TaskConstMeta(
+        debugName: "ResSendStatus_send_lost_ack_count",
         argNames: ["that"],
       );
 
@@ -596,7 +678,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 14,
             port: port_,
           );
         },
@@ -636,7 +718,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 13,
+              funcId: 15,
               port: port_,
             );
           },
@@ -665,7 +747,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 16,
             port: port_,
           );
         },
@@ -693,7 +775,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 17,
             port: port_,
           );
         },
@@ -742,6 +824,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RustArcDecrementStrongCountFnType
   get rust_arc_decrement_strong_count_ResRecvStatus => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResRecvStatus;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_ResSendStatus => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_ResSendStatus => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus;
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_Server => wire
@@ -794,6 +884,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ResSendStatus
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ResSendStatusImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   Server
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerServer(
     dynamic raw,
@@ -830,6 +929,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ResSendStatus
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ResSendStatusImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   ResConnection
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResConnection(
     dynamic raw,
@@ -863,6 +971,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ResRecvStatusImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  ResSendStatus
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ResSendStatusImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1017,6 +1134,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ((BigInt, int), (int, int))
+  dco_decode_record_record_u_64_u_32_record_u_32_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (
+      dco_decode_record_u_64_u_32(arr[0]),
+      dco_decode_record_u_32_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  (int, int) dco_decode_record_u_32_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (dco_decode_u_32(arr[0]), dco_decode_u_32(arr[1]));
+  }
+
+  @protected
   (BigInt, int) dco_decode_record_u_64_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1024,6 +1165,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       throw Exception('Expected 2 elements, got ${arr.length}');
     }
     return (dco_decode_u_64(arr[0]), dco_decode_u_32(arr[1]));
+  }
+
+  @protected
+  (BigInt, int, (int, int)) dco_decode_record_u_64_u_32_record_u_32_u_32(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3) {
+      throw Exception('Expected 3 elements, got ${arr.length}');
+    }
+    return (
+      dco_decode_u_64(arr[0]),
+      dco_decode_u_32(arr[1]),
+      dco_decode_record_u_32_u_32(arr[2]),
+    );
   }
 
   @protected
@@ -1146,6 +1303,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ResSendStatus
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return ResSendStatusImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   Server
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerServer(
     SseDeserializer deserializer,
@@ -1194,6 +1363,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ResSendStatus
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return ResSendStatusImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   ResConnection
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResConnection(
     SseDeserializer deserializer,
@@ -1236,6 +1417,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return ResRecvStatusImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  ResSendStatus
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return ResSendStatusImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -1394,11 +1587,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ((BigInt, int), (int, int))
+  sse_decode_record_record_u_64_u_32_record_u_32_u_32(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_field0 = sse_decode_record_u_64_u_32(deserializer);
+    final var_field1 = sse_decode_record_u_32_u_32(deserializer);
+    return (var_field0, var_field1);
+  }
+
+  @protected
+  (int, int) sse_decode_record_u_32_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_field0 = sse_decode_u_32(deserializer);
+    final var_field1 = sse_decode_u_32(deserializer);
+    return (var_field0, var_field1);
+  }
+
+  @protected
   (BigInt, int) sse_decode_record_u_64_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final var_field0 = sse_decode_u_64(deserializer);
     final var_field1 = sse_decode_u_32(deserializer);
     return (var_field0, var_field1);
+  }
+
+  @protected
+  (BigInt, int, (int, int)) sse_decode_record_u_64_u_32_record_u_32_u_32(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_field0 = sse_decode_u_64(deserializer);
+    final var_field1 = sse_decode_u_32(deserializer);
+    final var_field2 = sse_decode_record_u_32_u_32(deserializer);
+    return (var_field0, var_field1, var_field2);
   }
 
   @protected
@@ -1532,6 +1755,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+    ResSendStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as ResSendStatusImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerServer(
     Server self,
     SseSerializer serializer,
@@ -1584,6 +1820,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+    ResSendStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as ResSendStatusImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResConnection(
     ResConnection self,
     SseSerializer serializer,
@@ -1627,6 +1876,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as ResRecvStatusImpl).frbInternalSseEncode(),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResSendStatus(
+    ResSendStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as ResSendStatusImpl).frbInternalSseEncode(),
       serializer,
     );
   }
@@ -1795,6 +2057,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_record_record_u_64_u_32_record_u_32_u_32(
+    ((BigInt, int), (int, int)) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_record_u_64_u_32(self.$1, serializer);
+    sse_encode_record_u_32_u_32(self.$2, serializer);
+  }
+
+  @protected
+  void sse_encode_record_u_32_u_32((int, int) self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.$1, serializer);
+    sse_encode_u_32(self.$2, serializer);
+  }
+
+  @protected
   void sse_encode_record_u_64_u_32(
     (BigInt, int) self,
     SseSerializer serializer,
@@ -1802,6 +2081,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_64(self.$1, serializer);
     sse_encode_u_32(self.$2, serializer);
+  }
+
+  @protected
+  void sse_encode_record_u_64_u_32_record_u_32_u_32(
+    (BigInt, int, (int, int)) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.$1, serializer);
+    sse_encode_u_32(self.$2, serializer);
+    sse_encode_record_u_32_u_32(self.$3, serializer);
   }
 
   @protected
@@ -1916,20 +2206,24 @@ class ResEndpointImpl extends RustOpaque implements ResEndpoint {
     required int fd,
     required String name,
     required int frameSize,
+    required ResSendStatus status,
   }) => RustLib.instance.api.crateApiBridgeResEndpointSendFileFromFd(
     that: this,
     fd: fd,
     name: name,
     frameSize: frameSize,
+    status: status,
   );
 
   Future<void> sendFileFromPath({
     required String path,
     required int frameSize,
+    required ResSendStatus status,
   }) => RustLib.instance.api.crateApiBridgeResEndpointSendFileFromPath(
     that: this,
     path: path,
     frameSize: frameSize,
+    status: status,
   );
 }
 
@@ -1985,8 +2279,31 @@ class ResRecvStatusImpl extends RustOpaque implements ResRecvStatus {
         RustLib.instance.api.rust_arc_decrement_strong_count_ResRecvStatusPtr,
   );
 
-  (BigInt, int) totalAndRecvCount() => RustLib.instance.api
-      .crateApiBridgeResRecvStatusTotalAndRecvCount(that: this);
+  ((BigInt, int), (int, int)) totalRecvAckCount() => RustLib.instance.api
+      .crateApiBridgeResRecvStatusTotalRecvAckCount(that: this);
+}
+
+@sealed
+class ResSendStatusImpl extends RustOpaque implements ResSendStatus {
+  // Not to be used by end users
+  ResSendStatusImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  ResSendStatusImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_ResSendStatus,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_ResSendStatus,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_ResSendStatusPtr,
+  );
+
+  (BigInt, int, (int, int)) sendLostAckCount() => RustLib.instance.api
+      .crateApiBridgeResSendStatusSendLostAckCount(that: this);
 }
 
 @sealed

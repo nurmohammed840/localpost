@@ -36,9 +36,14 @@ abstract class ResEndpoint implements RustOpaqueInterface {
     required int fd,
     required String name,
     required int frameSize,
+    required ResSendStatus status,
   });
 
-  Future<void> sendFileFromPath({required String path, required int frameSize});
+  Future<void> sendFileFromPath({
+    required String path,
+    required int frameSize,
+    required ResSendStatus status,
+  });
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>>
@@ -55,7 +60,15 @@ abstract class ResRecvStatus implements RustOpaqueInterface {
   factory ResRecvStatus() =>
       RustLib.instance.api.crateApiBridgeResRecvStatusNew();
 
-  (BigInt, int) totalAndRecvCount();
+  ((BigInt, int), (int, int)) totalRecvAckCount();
+}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResSendStatus>>
+abstract class ResSendStatus implements RustOpaqueInterface {
+  factory ResSendStatus() =>
+      RustLib.instance.api.crateApiBridgeResSendStatusNew();
+
+  (BigInt, int, (int, int)) sendLostAckCount();
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Server>>
