@@ -29,13 +29,21 @@ class TransferScreen extends StatelessWidget {
         );
       }
 
-      return ListView.builder(
-        itemCount: fileRequests.value.length,
-        itemBuilder: (ctx, index) {
-          final req = fileRequests.value[index];
-          final fileName = utf8.decode(req.fileInfo.name, allowMalformed: true);
-          return FileCard(fileName: fileName, req: req);
-        },
+      return CustomScrollView(
+        slivers: [
+          const GroupHeader(title: 'Download'),
+          SliverList.builder(
+            itemCount: fileRequests.value.length,
+            itemBuilder: (ctx, index) {
+              final req = fileRequests.value[index];
+              final fileName = utf8.decode(
+                req.fileInfo.name,
+                allowMalformed: true,
+              );
+              return FileCard(fileName: fileName, req: req);
+            },
+          ),
+        ],
       );
     }),
   );
@@ -103,6 +111,26 @@ class AcceptRejectButtons extends StatelessWidget {
       ],
     );
   }
+}
+
+class GroupHeader extends StatelessWidget {
+  const new({super.key, required this.title});
+
+  final String title;
+
+  @override
+  Widget build(ctx) => SliverToBoxAdapter(
+    child: Padding(
+      padding: const .fromLTRB(16, 16, 16, 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: Theme.of(ctx).colorScheme.primary,
+          fontSize: 14,
+        ),
+      ),
+    ),
+  );
 }
 
 String formatBytes(BigInt bytes) {
