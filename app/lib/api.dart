@@ -8,7 +8,8 @@ import 'package:localpost/src/rust/api/bridge.dart';
 
 CreateState<ServerState> serverState = CreateState(ServerLoading());
 CreateState<List<Connection>> connections = CreateState([]);
-CreateState<List<FileRequest>> fileRequests = CreateState([]);
+CreateState<List<FileDownload>> uploads = CreateState([]);
+CreateState<List<FileDownload>> downloads = CreateState([]);
 
 sealed class ServerState {}
 
@@ -63,10 +64,14 @@ class const Connection(
   }
 }
 
-class FileRequest(final FileInfo fileInfo, final ResFile request) {
+class FileUpload(final FileInfo fileInfo) {
+  // final status = CreateState<ResRecvStatus?>(null);
+}
+
+class FileDownload(final FileInfo fileInfo, final ResFile request) {
   final status = CreateState<ResRecvStatus?>(null);
 
-  bool removeFromList() => fileRequests.update((list) => list.remove(this));
+  bool removeFromList() => downloads.update((list) => list.remove(this));
 
   Future reject() async {
     try {
@@ -175,8 +180,8 @@ void acceptRequests(Connection endpoint) {
     (request) async {
       try {
         final fileInfo = await request.fileInfo();
-        fileRequests.update((list) {
-          list.add(FileRequest(fileInfo, request));
+        downloads.update((list) {
+          list.add(FileDownload(fileInfo, request));
         });
       } catch (error) {
         showErrorSnackBar(error);

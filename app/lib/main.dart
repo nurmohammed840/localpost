@@ -64,12 +64,12 @@ class MainPage extends StatelessWidget {
 class TransferNavigationIcon extends StatelessWidget {
   const new({super.key});
 
-  static Widget badge(IconData icon) => fileRequests.watch(
+  static Widget badge(IconData icon) => downloads.watch(
     (_) => Badge(
       alignment: .topRight,
       offset: const Offset(8, -8),
-      isLabelVisible: fileRequests.value.isNotEmpty,
-      label: Text(fileRequests.value.length.toString()),
+      isLabelVisible: downloads.value.isNotEmpty,
+      label: Text(downloads.value.length.toString()),
       child: Icon(icon),
     ),
   );

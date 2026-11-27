@@ -12,8 +12,8 @@ class TransferScreen extends StatelessWidget {
   @override
   Widget build(_) => Scaffold(
     appBar: appBar(title: const Text('Transfer')),
-    body: fileRequests.watch((_) {
-      if (fileRequests.value.isEmpty) {
+    body: downloads.watch((_) {
+      if (downloads.value.isEmpty) {
         return const Center(
           child: Column(
             mainAxisSize: .min,
@@ -33,9 +33,9 @@ class TransferScreen extends StatelessWidget {
         slivers: [
           const GroupHeader(title: 'Download'),
           SliverList.builder(
-            itemCount: fileRequests.value.length,
+            itemCount: downloads.value.length,
             itemBuilder: (ctx, index) {
-              final req = fileRequests.value[index];
+              final req = downloads.value[index];
               final fileName = utf8.decode(
                 req.fileInfo.name,
                 allowMalformed: true,
@@ -53,7 +53,7 @@ class FileCard extends StatelessWidget {
   const new({super.key, required this.fileName, required this.req});
 
   final String fileName;
-  final FileRequest req;
+  final FileDownload req;
 
   void onTap() {}
 
@@ -87,7 +87,7 @@ class FileCard extends StatelessWidget {
 class AcceptRejectButtons extends StatelessWidget {
   const new({super.key, required this.req});
 
-  final FileRequest req;
+  final FileDownload req;
 
   @override
   Widget build(ctx) {
