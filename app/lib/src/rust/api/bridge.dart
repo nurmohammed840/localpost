@@ -32,18 +32,28 @@ abstract class ResEndpoint implements RustOpaqueInterface {
     serverPort: serverPort,
   );
 
-  Future<void> sendFileFromFd({
+  Future<void> sendFile({required ResFile file, required ResSendStatus status});
+}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFile>>
+abstract class ResFile implements RustOpaqueInterface {
+  FileInfo fileInfo();
+
+  static ResFile fromFd({
     required int fd,
     required String name,
     required int frameSize,
-    required ResSendStatus status,
-  });
+  }) => RustLib.instance.api.crateApiBridgeResFileFromFd(
+    fd: fd,
+    name: name,
+    frameSize: frameSize,
+  );
 
-  Future<void> sendFileFromPath({
-    required String path,
-    required int frameSize,
-    required ResSendStatus status,
-  });
+  static ResFile fromPath({required String path, required int frameSize}) =>
+      RustLib.instance.api.crateApiBridgeResFileFromPath(
+        path: path,
+        frameSize: frameSize,
+      );
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ResFileRequest>>

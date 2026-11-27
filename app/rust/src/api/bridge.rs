@@ -123,41 +123,10 @@ impl ResEndpoint {
         })
     }
 
-    pub fn send_file_from_path(
-        &self,
-        path: String,
-        frame_size: u16,
-        status: &ResSendStatus,
-    ) -> Result<()> {
-        let endpoint = self.endpoint.clone();
-        let status = status.inner.clone();
-        let (reader, file_info) = FileReader::open(path, frame_size)?;
-
-        block_on(async move || endpoint.send(reader, file_info, status).await)
-    }
-
-    pub fn send_file_from_fd(
-        &self,
-        fd: i32,
-        name: String,
-        frame_size: u16,
-        status: &ResSendStatus,
-    ) -> Result<()> {
-        use std::io::{Seek, SeekFrom};
-        use std::os::fd::FromRawFd;
-
-        // SAFETY: `fd` was detached on the Android side, so we are its sole owner,
-        // and it is closed exactly once when `file` drops.
-        let mut file = unsafe { File::from_raw_fd(fd) };
-        file.seek(SeekFrom::Start(0))?;
-
-        let (reader, file_info) =
-            FileReader::from(file, name.into(), frame_size, FileReader::BUFFER_SIZE)?;
-
+    pub fn send_file(&self, file: ResFile, status: &ResSendStatus) -> Result<()> {
         let status = status.inner.clone();
         let endpoint = self.endpoint.clone();
-
-        block_on(async move || endpoint.send(reader, file_info, status).await)
+        block_on(async move || endpoint.send(file.reader, file.file_info, status).await)
     }
 
     pub fn accept_requests(&self, sink: StreamSink<ResFileRequest>) {
@@ -179,6 +148,41 @@ impl ResEndpoint {
     pub fn disconnect(&self) -> Result<()> {
         let endpoint = self.endpoint.clone();
         block_on(async move || endpoint.disconnect().await)
+    }
+}
+
+#[frb(opaque)]
+pub struct ResFile {
+    reader: FileReader<File>,
+    file_info: FileInfo,
+}
+
+impl ResFile {
+    #[frb(sync)]
+    pub fn from_fd(fd: i32, name: String, frame_size: u16) -> Result<Self> {
+        use std::io::{Seek, SeekFrom};
+        use std::os::fd::FromRawFd;
+
+        // SAFETY: `fd` was detached on the Android side, so we are its sole owner,
+        // and it is closed exactly once when `file` drops.
+        let mut file = unsafe { File::from_raw_fd(fd) };
+        file.seek(SeekFrom::Start(0))?;
+
+        let (reader, file_info) =
+            FileReader::from(file, name.into(), frame_size, FileReader::BUFFER_SIZE)?;
+
+        Ok(Self { reader, file_info })
+    }
+
+    #[frb(sync)]
+    pub fn from_path(path: String, frame_size: u16) -> Result<Self> {
+        let (reader, file_info) = FileReader::open(path, frame_size)?;
+        Ok(Self { reader, file_info })
+    }
+
+     #[frb(sync)]
+    pub fn file_info(&self) -> FileInfo {
+        self.file_info.clone()
     }
 }
 

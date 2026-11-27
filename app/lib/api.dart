@@ -42,29 +42,13 @@ class const Connection(
   }
 
   Future sendFile() async {
-    const frameSize = 1500 - (20 + 8);
     final status = ResSendStatus();
 
     try {
-      if (Platform.isAndroid) {
-        final picked = await AndroidFilePicker.pickFile();
-        if (picked == null) return;
+      final file = await _pickResFile();
+      if (file == null) return;
 
-        await endpoint.sendFileFromFd(
-          fd: picked.fd,
-          name: picked.name,
-          frameSize: frameSize,
-          status: status,
-        );
-      } else {
-        final path = await pickFile();
-        if (path == null) return;
-        await endpoint.sendFileFromPath(
-          path: path,
-          frameSize: frameSize,
-          status: status,
-        );
-      }
+      await endpoint.sendFile(file: file, status: status);
     } catch (error) {
       showErrorSnackBar(error);
     }
@@ -195,4 +179,25 @@ void acceptRequests(Connection endpoint) {
       }
     },
   );
+}
+
+// -----------------------------------------------
+
+Future<ResFile?> _pickResFile() async {
+  const frameSize = 1500 - (20 + 8);
+
+  if (Platform.isAndroid) {
+    final picked = await AndroidFilePicker.pickFile();
+    if (picked == null) return null;
+
+    return ResFile.fromFd(
+      fd: picked.fd,
+      name: picked.name,
+      frameSize: frameSize,
+    );
+  }
+
+  final path = await pickFile();
+  if (path == null) return null;
+  return ResFile.fromPath(path: path, frameSize: frameSize);
 }
