@@ -47,30 +47,39 @@ class FileCard extends StatelessWidget {
   final String fileName;
   final FileRequest req;
 
+  void onTap() {}
+
   @override
   Widget build(_) => Card(
     elevation: 0,
     clipBehavior: .antiAlias,
     margin: const .symmetric(horizontal: 12, vertical: 6),
     shape: RoundedRectangleBorder(borderRadius: .circular(8)),
-    child: ListTile(
-      onTap: () {},
-      leading: Icon(fileIcon(fileName), size: 32),
-      title: Text(fileName, maxLines: 1, overflow: .ellipsis),
-      subtitle: Column(
-        crossAxisAlignment: .start,
-        children: [
-          Text(formatDate(req.fileInfo.lastModified)),
-          Text(formatBytes(req.fileInfo.size)),
-        ],
+    child: req.status.watch(
+      (_) => ListTile(
+        leading: Icon(fileIcon(fileName), size: 32),
+        title: Text(fileName, maxLines: 1, overflow: .ellipsis),
+        subtitle: Column(
+          crossAxisAlignment: .start,
+          children: [
+            Text(formatDate(req.fileInfo.lastModified)),
+            Text(formatBytes(req.fileInfo.size)),
+          ],
+        ),
+        trailing: req.status.value == null
+            ? AcceptRejectButtons(req: req)
+            : null,
+
+        onTap: req.status.value == null ? null : onTap,
       ),
-      trailing: const AcceptRejectButtons(),
     ),
   );
 }
 
 class AcceptRejectButtons extends StatelessWidget {
-  const new({super.key});
+  const new({super.key, required this.req});
+
+  final FileRequest req;
 
   @override
   Widget build(ctx) {
@@ -83,13 +92,13 @@ class AcceptRejectButtons extends StatelessWidget {
           tooltip: 'Reject',
           color: scheme.error,
           icon: const Icon(Icons.close),
-          onPressed: () {},
+          onPressed: req.reject,
         ),
         IconButton(
           tooltip: 'Accept',
           color: scheme.primary,
           icon: const Icon(Icons.check),
-          onPressed: () {},
+          onPressed: req.accept,
         ),
       ],
     );

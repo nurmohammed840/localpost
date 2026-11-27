@@ -66,7 +66,20 @@ class const Connection(
 class FileRequest(final FileInfo fileInfo, final ResFile request) {
   final status = CreateState<ResRecvStatus?>(null);
 
-  Future receive() async {
+  void removeFromList() {
+    fileRequests.update((list) => list.remove(this));
+  }
+
+  Future reject() async {
+    try {
+      removeFromList();
+      await request.closeWithoutResponse();
+    } catch (error) {
+      showErrorSnackBar(error);
+    }
+  }
+
+  Future accept() async {
     final recvStatus = ResRecvStatus();
     status.set(recvStatus);
     // request.receive(path: "path", status: recvStatus);
@@ -167,7 +180,6 @@ void acceptRequests(Connection endpoint) {
         fileRequests.update((list) {
           list.add(FileRequest(fileInfo, request));
         });
-        // await request.closeWithoutResponse();
       } catch (error) {
         showErrorSnackBar(error);
       }
