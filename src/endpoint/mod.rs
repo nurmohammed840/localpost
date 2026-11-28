@@ -1,3 +1,4 @@
+pub mod error;
 pub mod frame;
 pub mod handshake;
 pub mod mux;
@@ -15,7 +16,7 @@ use std::{
     cell::RefCell,
     fmt::Debug,
     fs::File,
-    io::{Seek, Write},
+    io::{self, ErrorKind, Seek, Write},
     net::{SocketAddr, ToSocketAddrs},
     rc::Rc,
     sync::Arc,
@@ -136,13 +137,10 @@ impl Endpoint {
 
         match self.mode {
             Mode::Client => {
-                stream.send_last_msg(file_info).await?;
-                let tid: TransferID = stream.recv().await?;
-                drop(stream);
+                let tid = send_file_info(&file_info, stream).await?;
 
                 let receiver_socket_addr = (self.peer_addr.ip(), tid.udp_port);
                 sender.socket.connect(receiver_socket_addr).await?;
-
                 FileSender::new(reader, sender).init_send(status).await
             }
             Mode::Server => {
@@ -154,8 +152,8 @@ impl Endpoint {
                     FileSender::new(reader, sender).init_send(status).await
                 });
 
-                stream.send_last_msg(file_info).await?;
-                drop(stream);
+                let _ = send_file_info(&file_info, stream).await?;
+
                 task.await?
             }
         }
@@ -163,6 +161,21 @@ impl Endpoint {
 
     pub fn peer_addr(&self) -> SocketAddr {
         self.peer_addr
+    }
+}
+
+async fn send_file_info(file_info: &FileInfo, stream: mux::Stream) -> Result<TransferID> {
+    stream.send_last_msg(file_info).await?;
+    match stream.recv().await {
+        Err(err)
+            if err
+                .downcast_ref()
+                .map(io::Error::kind)
+                .is_some_and(|kind| kind == ErrorKind::UnexpectedEof) =>
+        {
+            return Err(error::Canceled.into());
+        }
+        res => res,
     }
 }
 
@@ -192,8 +205,10 @@ impl FileRequest {
         status: Arc<RecvStatus>,
         tid: TransferID,
     ) -> Result<()> {
+        self.stream.send_last_msg(tid).await?;
+
         match self.mode {
-            Mode::Server => self.stream.send_last_msg(tid).await,
+            Mode::Server => Ok(()),
             Mode::Client => {
                 let signal_ready = FrameType::SignalReady(tid).to_bytes()?;
 
